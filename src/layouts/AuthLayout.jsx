@@ -4,10 +4,10 @@ export default function AuthLayout() {
     return (
         <main className="min-h-screen bg-slate-100 flex items-center justify-center px-6 py-10">
             <div className="w-full max-w-6xl min-h-[720px] bg-white rounded-3xl shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-2">
-                <section className="bg-gradient-to-br from-blue-700 to-blue-500 text-white p-12 flex flex-col justify-between">
+                <section className="bg-gradient-to-br from-[#005AB6] to-[#1672DF] text-white p-12 flex flex-col justify-between">
                     <div>
                         <h1 className="font-bold text-xl mb-14">MySkin</h1>
-                        <h2 className="text-4xl font-bold leading-tight mb-6">
+                        <h2 className="text-4xl font-bold leading-tight mb-6 font-jakarta">
                             Precision Skin Health <br /> for Everyone.
                         </h2>
                         <p className="text-blue-100 max-w-md leading-relaxed">
