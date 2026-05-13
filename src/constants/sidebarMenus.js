@@ -1,8 +1,8 @@
 export const sidebarMenus = {
     doctor: [
         { label: "Overview", path: "/doctor/dashboard" },
-        { label: "Historical Case", path: "/doctor/history" },
-        { label: "System Settings", path: "/doctor/settings" },
+        { label: "Historical Case", path: "/doctor/history", title: "Historical Case Reviews" },
+        { label: "System Settings", path: "/doctor/settings", hideHeaderTitle: true },
     ],
     patient: [
         { label: "Overview", path: "/patient/dashboard" },

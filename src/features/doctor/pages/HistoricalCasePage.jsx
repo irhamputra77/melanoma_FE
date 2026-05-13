@@ -1,4 +1,18 @@
-// src/features/doctor/pages/HistoricalCasePage.jsx
+import CaseHistoryTable from "../components/historical/CaseHistoryTable";
+import HistoricalCaseControls from "../components/historical/HistoricalCaseControls";
+import PatientDetailPanel from "../components/historical/PatientDetailPanel";
+
 export default function HistoricalCasePage() {
-    return <h1 className="text-3xl font-bold">Ini page historical case doctor</h1>;
+    return (
+        <div className="grid grid-cols-12 gap-10">
+            <div className="col-span-12 2xl:col-span-9">
+                <HistoricalCaseControls />
+                <CaseHistoryTable />
+            </div>
+
+            <div className="col-span-12 2xl:col-span-3">
+                <PatientDetailPanel />
+            </div>
+        </div>
+    );
 }
