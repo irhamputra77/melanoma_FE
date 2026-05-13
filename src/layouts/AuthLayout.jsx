@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import profileDoctor from "../assets/login_doctor_profile.png";
 
 export default function AuthLayout() {
     return (
@@ -15,13 +16,16 @@ export default function AuthLayout() {
                             and professional patient management in one secure platform.
                         </p>
                     </div>
+                    <div className="flex items-center space-x-4">
+                        <img src={profileDoctor} alt="doctor profile" className="h-10" />
+                        <p className="text-sm text-blue-100 italic">
+                            Joined by 2,000+ clinicians worldwide
+                        </p>
+                    </div>
 
-                    <p className="text-sm text-blue-100">
-                        Joined by 2,000+ clinicians worldwide
-                    </p>
                 </section>
 
-                <section className="p-10 lg:p-16">
+                <section className="p-10 lg:pb-60">
                     <Outlet />
                 </section>
             </div>
