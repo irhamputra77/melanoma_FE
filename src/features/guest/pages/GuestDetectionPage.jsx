@@ -141,6 +141,12 @@ const DetectionPage = () => {
 
     // ================= ACTION HANDLERS (API READY & DUMMY FLOW) =================
     const handleAnalyze = async () => {
+        if (!selectedFile) {
+            setErrorMessage('Harap unggah gambar terlebih dahulu.');
+            setViewState('upload');
+            return;
+        }
+
         setIsAnalyzing(true);
 
         /* === API READY CODE === 

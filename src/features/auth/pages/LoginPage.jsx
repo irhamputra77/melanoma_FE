@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 import React, { useState } from "react";
-import { getCurrentUser, login } from "../services/authService";
+import { login } from "../services/authService";
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -35,9 +35,7 @@ export default function LoginPage() {
                 localStorage.setItem("token", token);
             }
 
-            const loginRole = getRoleFromAuthResponse(loginData);
-            const me = loginRole ? null : await getCurrentUser();
-            const role = loginRole || getRoleFromAuthResponse(me);
+            const role = getRoleFromAuthResponse(loginData);
 
             if (role) {
                 localStorage.setItem("role", role);

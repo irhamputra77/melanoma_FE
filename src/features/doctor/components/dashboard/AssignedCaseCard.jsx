@@ -1,7 +1,10 @@
-export default function AssignedCaseCard({ item, active }) {
+import { toAssetUrl } from "../../../../utils/assets";
+
+export default function AssignedCaseCard({ item, active, onClick }) {
     return (
         <button
             type="button"
+            onClick={onClick}
             className={`relative w-full min-h-[100px] overflow-hidden rounded-2xl bg-white px-5 py-4 text-left transition hover:shadow-md ${active ? "shadow-sm" : ""
                 }`}
         >
@@ -13,7 +16,15 @@ export default function AssignedCaseCard({ item, active }) {
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-4">
                         <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100 flex items-center justify-center text-xl">
-                            {item.avatar}
+                            {item.avatarUrl ? (
+                                <img
+                                    src={toAssetUrl(item.avatarUrl)}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                item.avatar || initialsFromName(item.name)
+                            )}
                         </div>
 
                         <div className="min-w-0">
@@ -35,4 +46,13 @@ export default function AssignedCaseCard({ item, active }) {
             </div>
         </button>
     );
+}
+
+function initialsFromName(name = "") {
+    return name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
 }

@@ -1,6 +1,6 @@
 import ToggleSwitch from "./ToggleSwitch";
 
-export default function NotificationRow({ icon, title, description, enabled }) {
+export default function NotificationRow({ icon, title, description, enabled, onToggle, disabled }) {
     return (
         <div className="flex items-center justify-between gap-6 rounded-xl bg-white px-4 py-4">
             <div className="flex items-center gap-4">
@@ -14,7 +14,7 @@ export default function NotificationRow({ icon, title, description, enabled }) {
                 </div>
             </div>
 
-            <ToggleSwitch checked={enabled} />
+            <ToggleSwitch checked={enabled} onClick={onToggle} disabled={disabled} />
         </div>
     );
 }

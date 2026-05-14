@@ -1,58 +1,11 @@
 import AssignedCaseCard from "./AssignedCaseCard";
 
-const assignedCases = [
-    {
-        name: "Sarah Johnson",
-        id: "#SK-9921",
-        time: "2 hours ago",
-        urgent: true,
-        avatar: "👩🏻‍⚕️",
-    },
-    {
-        name: "David Chen",
-        id: "#SK-8812",
-        time: "5 hours ago",
-        avatar: "👨🏻",
-    },
-    {
-        name: "Aaron Minaj",
-        id: "#SK-8812",
-        time: "5 hours ago",
-        avatar: "👨🏽",
-    },
-    {
-        name: "Kevin Smith",
-        id: "#SK-8812",
-        time: "5 hours ago",
-        avatar: "🧔🏻",
-    },
-    {
-        name: "David Arch",
-        id: "#SK-8812",
-        time: "5 hours ago",
-        avatar: "👨🏼",
-    },
-    {
-        name: "Billie Minaj",
-        id: "#SK-8756",
-        time: "Yesterday",
-        avatar: "👨‍🦳",
-    },
-    {
-        name: "Elena Ellish",
-        id: "#SK-8756",
-        time: "Yesterday",
-        avatar: "👩🏼",
-    },
-    {
-        name: "Christie Minaj",
-        id: "#SK-8756",
-        time: "Yesterday",
-        avatar: "👩🏽",
-    },
-];
-
-export default function AssignedCaseList() {
+export default function AssignedCaseList({
+    cases = [],
+    selectedCaseId = "",
+    onSelectCase,
+    loading = false,
+}) {
     return (
         <div>
             <div className="bg-white rounded-2xl shadow-sm py-3 text-center text-slate-700 font-bold mb-8 border border-slate-100">
@@ -60,14 +13,51 @@ export default function AssignedCaseList() {
             </div>
 
             <div className="space-y-4">
-                {assignedCases.map((item, index) => (
+                {loading && (
+                    <div className="rounded-2xl bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">
+                        Loading assigned cases...
+                    </div>
+                )}
+
+                {!loading && cases.length === 0 && (
+                    <div className="rounded-2xl bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">
+                        No assigned cases.
+                    </div>
+                )}
+
+                {!loading && cases.map((item) => (
                     <AssignedCaseCard
-                        key={`${item.id}-${index}`}
-                        item={item}
-                        active={index === 0}
+                        key={item.caseId}
+                        item={mapAssignedCase(item)}
+                        active={item.caseId === selectedCaseId}
+                        onClick={() => onSelectCase?.(item.caseId)}
                     />
                 ))}
             </div>
         </div>
     );
+}
+
+function mapAssignedCase(item) {
+    return {
+        ...item,
+        name: item.patientName,
+        id: `#${item.caseId}`,
+        time: formatRelativeTime(item.receivedAt),
+        urgent: item.status === "pending_review",
+    };
+}
+
+function formatRelativeTime(value) {
+    if (!value) return "";
+
+    const receivedAt = new Date(value).getTime();
+    const diffMs = Date.now() - receivedAt;
+    const diffHours = Math.max(0, Math.floor(diffMs / 3_600_000));
+
+    if (diffHours < 1) return "Just now";
+    if (diffHours < 24) return `${diffHours} hours ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return diffDays === 1 ? "Yesterday" : `${diffDays} days ago`;
 }

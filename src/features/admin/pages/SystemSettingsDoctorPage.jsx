@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
     Bell,
     ChevronDown,
@@ -10,8 +11,140 @@ import {
 import NotificationRow from "../components/settings/NotificationRow";
 import SettingsSection from "../components/settings/SettingsSection";
 import ToggleSwitch from "../components/settings/ToggleSwitch";
+import {
+    getAdminSettings,
+    updateAdminAccountSettings,
+    updateAdminNotificationSettings,
+    updateAdminPreferences,
+    updateAdminPrivacySettings,
+    updateAdminTwoFactor,
+} from "../services/adminService";
+
+const defaultSettings = {
+    account: {
+        email: "",
+        twoFactorEnabled: false,
+    },
+    notifications: {
+        emailNotifications: false,
+        verificationAlerts: false,
+    },
+    privacy: {
+        dataVisibility: "restricted_clinical_team_only",
+    },
+    preferences: {
+        language: "English (US)",
+    },
+};
 
 export default function SystemSettingsDoctorPage() {
+    const [settings, setSettings] = useState(defaultSettings);
+    const [initialSettings, setInitialSettings] = useState(defaultSettings);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState("");
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    useEffect(() => {
+        let isMounted = true;
+
+        getAdminSettings()
+            .then((data) => {
+                if (!isMounted) return;
+
+                const normalized = normalizeSettings(data);
+                setSettings(normalized);
+                setInitialSettings(normalized);
+            })
+            .catch((error) => {
+                if (isMounted) {
+                    setError(error.response?.data?.message || "Failed to fetch admin settings.");
+                }
+            })
+            .finally(() => {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const updateSettings = (section, value) => {
+        setSettings((current) => ({
+            ...current,
+            [section]: {
+                ...current[section],
+                ...value,
+            },
+        }));
+        setError("");
+        setSuccess("");
+    };
+
+    const toggleTwoFactor = async () => {
+        const previous = settings.account.twoFactorEnabled;
+        const enabled = !previous;
+        updateSettings("account", { twoFactorEnabled: enabled });
+        setSaving("2fa");
+
+        try {
+            await updateAdminTwoFactor(enabled);
+        } catch (error) {
+            updateSettings("account", { twoFactorEnabled: previous });
+            setError(error.response?.data?.message || "Failed to update two-factor setting.");
+        } finally {
+            setSaving("");
+        }
+    };
+
+    const toggleNotification = async (key) => {
+        const previous = settings.notifications;
+        const next = { ...settings.notifications, [key]: !settings.notifications[key] };
+        updateSettings("notifications", next);
+        setSaving("notifications");
+
+        try {
+            await updateAdminNotificationSettings(next);
+        } catch (error) {
+            updateSettings("notifications", previous);
+            setError(error.response?.data?.message || "Failed to update notification settings.");
+        } finally {
+            setSaving("");
+        }
+    };
+
+    const discardChanges = () => {
+        setSettings(initialSettings);
+        setError("");
+        setSuccess("");
+    };
+
+    const savePreferences = async () => {
+        setSaving("all");
+        setError("");
+        setSuccess("");
+
+        try {
+            await Promise.all([
+                updateAdminAccountSettings({ email: settings.account.email }),
+                updateAdminPrivacySettings(settings.privacy),
+                updateAdminPreferences(settings.preferences),
+            ]);
+
+            const normalized = normalizeSettings(settings);
+            setSettings(normalized);
+            setInitialSettings(normalized);
+            setSuccess("Preferences saved.");
+        } catch (error) {
+            setError(error.response?.data?.message || "Failed to save preferences.");
+        } finally {
+            setSaving("");
+        }
+    };
+
     return (
         <div className="max-w-6xl">
             <div className="mb-11">
@@ -23,14 +156,27 @@ export default function SystemSettingsDoctorPage() {
                 </p>
             </div>
 
+            {error && (
+                <div className="mb-6 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600">
+                    {error}
+                </div>
+            )}
+            {success && (
+                <div className="mb-6 rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
+                    {success}
+                </div>
+            )}
+
             <div className="space-y-8">
-                <SettingsSection
-                    icon={<UserCircle size={24} />}
-                    title="Account Settings"
-                >
+                <SettingsSection icon={<UserCircle size={24} />} title="Account Settings">
                     <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
                         <div className="space-y-5">
-                            <Field label="Email Address" value="aryojaty@icloud.com" />
+                            <Field
+                                label="Email Address"
+                                value={loading ? "Loading..." : settings.account.email}
+                                readOnly={loading}
+                                onChange={(value) => updateSettings("account", { email: value })}
+                            />
 
                             <div>
                                 <label className="mb-2 block text-sm font-extrabold text-slate-600">
@@ -38,10 +184,7 @@ export default function SystemSettingsDoctorPage() {
                                 </label>
                                 <div className="flex h-14 items-center justify-between rounded-xl bg-white px-4">
                                     <span className="text-slate-900">********</span>
-                                    <button
-                                        type="button"
-                                        className="text-sm font-bold text-blue-600"
-                                    >
+                                    <button type="button" className="text-sm font-bold text-blue-600">
                                         Change
                                     </button>
                                 </div>
@@ -50,15 +193,15 @@ export default function SystemSettingsDoctorPage() {
 
                         <div className="flex min-h-40 items-center justify-between gap-6 rounded-2xl bg-white px-7">
                             <div>
-                                <h3 className="text-lg font-extrabold text-slate-900">
-                                    Two-Factor Authentication
-                                </h3>
-                                <p className="mt-1 text-sm text-slate-500">
-                                    Enhanced security for clinical data access.
-                                </p>
+                                <h3 className="text-lg font-extrabold text-slate-900">Two-Factor Authentication</h3>
+                                <p className="mt-1 text-sm text-slate-500">Enhanced security for clinical data access.</p>
                             </div>
 
-                            <ToggleSwitch checked />
+                            <ToggleSwitch
+                                checked={settings.account.twoFactorEnabled}
+                                onClick={toggleTwoFactor}
+                                disabled={loading || saving === "2fa"}
+                            />
                         </div>
                     </div>
                 </SettingsSection>
@@ -69,12 +212,17 @@ export default function SystemSettingsDoctorPage() {
                             icon={<Mail size={21} />}
                             title="Email Notifications"
                             description="Weekly summaries and system updates."
-                            enabled
+                            enabled={settings.notifications.emailNotifications}
+                            onToggle={() => toggleNotification("emailNotifications")}
+                            disabled={loading || saving === "notifications"}
                         />
                         <NotificationRow
                             icon={<ShieldCheck size={21} />}
                             title="Verification Alerts"
                             description="Instant alerts for new high-confidence detections."
+                            enabled={settings.notifications.verificationAlerts}
+                            onToggle={() => toggleNotification("verificationAlerts")}
+                            disabled={loading || saving === "notifications"}
                         />
                     </div>
                 </SettingsSection>
@@ -82,16 +230,20 @@ export default function SystemSettingsDoctorPage() {
                 <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
                     <SettingsSection icon={<Shield size={22} />} title="Privacy Settings">
                         <div className="rounded-2xl bg-white p-4">
-                            <label className="mb-2 block text-sm font-extrabold text-slate-900">
-                                Data Visibility
-                            </label>
-                            <button
-                                type="button"
-                                className="flex h-11 w-full items-center justify-between rounded-lg bg-slate-100 px-4 text-sm text-slate-900"
-                            >
-                                Restricted (Clinical Team Only)
-                                <ChevronDown size={18} className="text-slate-500" />
-                            </button>
+                            <label className="mb-2 block text-sm font-extrabold text-slate-900">Data Visibility</label>
+                            <div className="relative">
+                                <select
+                                    value={settings.privacy.dataVisibility}
+                                    onChange={(event) => updateSettings("privacy", { dataVisibility: event.target.value })}
+                                    disabled={loading}
+                                    className="flex h-11 w-full appearance-none items-center justify-between rounded-lg bg-slate-100 px-4 text-sm text-slate-900 outline-none disabled:text-slate-500"
+                                >
+                                    <option value="restricted_clinical_team_only">Restricted (Clinical Team Only)</option>
+                                    <option value="restricted_self_only">Restricted (Self Only)</option>
+                                    <option value="shared_with_clinic">Shared With Clinic</option>
+                                </select>
+                                <ChevronDown size={18} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                            </div>
                         </div>
 
                         <p className="mt-5 text-sm italic text-slate-500">
@@ -104,9 +256,10 @@ export default function SystemSettingsDoctorPage() {
                             <p className="text-sm font-extrabold text-slate-900">Language</p>
                             <button
                                 type="button"
+                                onClick={() => updateSettings("preferences", { language: "English (US)" })}
                                 className="text-sm font-extrabold text-blue-600"
                             >
-                                English (US)
+                                {settings.preferences.language}
                             </button>
                         </div>
                     </SettingsSection>
@@ -115,15 +268,19 @@ export default function SystemSettingsDoctorPage() {
                 <div className="flex items-center justify-end gap-12 pt-2">
                     <button
                         type="button"
-                        className="text-base font-extrabold text-blue-600"
+                        onClick={discardChanges}
+                        disabled={loading || Boolean(saving)}
+                        className="text-base font-extrabold text-blue-600 disabled:text-slate-400"
                     >
                         Discard Changes
                     </button>
                     <button
                         type="button"
-                        className="h-14 rounded-xl bg-blue-600 px-10 text-base font-extrabold text-white shadow-lg shadow-blue-600/20"
+                        onClick={savePreferences}
+                        disabled={loading || saving === "all"}
+                        className="h-14 rounded-xl bg-blue-600 px-10 text-base font-extrabold text-white shadow-lg shadow-blue-600/20 disabled:bg-blue-300"
                     >
-                        Save Preferences
+                        {saving === "all" ? "Saving..." : "Save Preferences"}
                     </button>
                 </div>
             </div>
@@ -131,15 +288,44 @@ export default function SystemSettingsDoctorPage() {
     );
 }
 
-function Field({ label, value }) {
+function Field({ label, value, onChange, readOnly = false }) {
     return (
         <div>
-            <label className="mb-2 block text-sm font-extrabold text-slate-600">
-                {label}
-            </label>
-            <div className="flex h-14 items-center rounded-xl bg-white px-4 text-slate-900">
-                {value}
-            </div>
+            <label className="mb-2 block text-sm font-extrabold text-slate-600">{label}</label>
+            <input
+                value={value || ""}
+                onChange={(event) => onChange?.(event.target.value)}
+                readOnly={readOnly}
+                className="flex h-14 w-full items-center rounded-xl bg-white px-4 text-slate-900 outline-none read-only:text-slate-500"
+            />
         </div>
     );
+}
+
+function normalizeSettings(data) {
+    const account = data?.account || {};
+    const notifications = data?.notifications || {};
+    const privacy = data?.privacy || {};
+    const preferences = data?.preferences || {};
+
+    return {
+        account: {
+            ...defaultSettings.account,
+            email: account.email || data?.email || "",
+            twoFactorEnabled: Boolean(account.twoFactorEnabled ?? account.enabled ?? data?.twoFactorEnabled),
+        },
+        notifications: {
+            ...defaultSettings.notifications,
+            emailNotifications: Boolean(notifications.emailNotifications ?? data?.emailNotifications),
+            verificationAlerts: Boolean(notifications.verificationAlerts ?? data?.verificationAlerts),
+        },
+        privacy: {
+            ...defaultSettings.privacy,
+            dataVisibility: privacy.dataVisibility || data?.dataVisibility || defaultSettings.privacy.dataVisibility,
+        },
+        preferences: {
+            ...defaultSettings.preferences,
+            language: preferences.language || data?.language || defaultSettings.preferences.language,
+        },
+    };
 }

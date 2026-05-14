@@ -7,7 +7,10 @@ export const login = async (payload) => {
 };
 
 export const register = async (payload) => {
-    const response = await api.post(ENDPOINTS.AUTH.REGISTER, payload);
+    const config = payload instanceof FormData
+        ? { headers: { "Content-Type": "multipart/form-data" } }
+        : undefined;
+    const response = await api.post(ENDPOINTS.AUTH.REGISTER, payload, config);
     return response.data;
 }
 

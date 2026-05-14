@@ -11,9 +11,9 @@ export const sidebarMenus = {
         { label: "System Settings", path: "/patient/settings" },
     ],
     admin: [
-        { label: "Overview", path: "/admin/dashboard" },
-        { label: "Users Management", path: "/admin/users" },
-        { label: "Doctor Details", path: "/admin/verification" },
-        { label: "System Settings", path: "/admin/settings" },
+        { label: "Overview", path: "/admin/dashboard", hideHeaderTitle: true },
+        { label: "User Management", path: "/admin/users", hideHeaderTitle: true },
+        { label: "Historical Data", path: "/admin/verification", hideHeaderTitle: true },
+        { label: "System Settings", path: "/admin/settings", hideHeaderTitle: true },
     ],
 }

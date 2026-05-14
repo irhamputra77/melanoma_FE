@@ -1,4 +1,18 @@
-export default function ClinicalImageCard() {
+import { toAssetUrl } from "../../../../utils/assets";
+
+export default function ClinicalImageCard({ imageUrl }) {
+    if (imageUrl) {
+        return (
+            <div className="h-[266px] w-[352px] rounded-2xl bg-black overflow-hidden flex items-center justify-center relative">
+                <img
+                    src={toAssetUrl(imageUrl)}
+                    alt="Clinical lesion"
+                    className="h-full w-full object-cover"
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="h-[266px] w-[352px] rounded-2xl bg-black overflow-hidden flex items-center justify-center relative">
             <div
