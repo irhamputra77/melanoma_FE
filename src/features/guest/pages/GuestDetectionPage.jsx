@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingButton from '../../../components/common/LoadingButton';
 import ReactCrop from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css'; // Wajib di-import untuk styling bawaan crop
+import 'react-image-crop/dist/ReactCrop.css';
 
-const DetectionPage = () => {
+const GuestDetectionPage = () => {
     const navigate = useNavigate();
 
     // ================= STATE MANAGEMENT =================
@@ -403,4 +403,4 @@ const DetectionPage = () => {
     );
 };
 
-export default DetectionPage;
+export default GuestDetectionPage;
