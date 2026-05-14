@@ -12,15 +12,17 @@ import HistoricalCasePage from "../features/doctor/pages/HistoricalCasePage";
 import DoctorSettingsPage from "../features/doctor/pages/DoctorSettingsPage";
 
 import PatientDashboardPage from "../features/patient/pages/PatientDashboardPage";
-import HistoricalDataPage from "../features/patient/pages/HistoricalDataPage";
 import PatientReportPage from "../features/patient/pages/PatientReportPage";
 import SystemSettingsPatient from "../features/patient/pages/SystemSettingsPatient";
+import HistoricalDetailPage from "../features/patient/pages/HistoricalDetailPage";
+import HistoricalListPage from "../features/patient/pages/HistoricalListPage";
 
 import AdminDashboardPage from "../features/admin/pages/AdminDashboardPage";
 import DoctorDetailsPage from "../features/admin/pages/DoctorDetailsPage";
 import UserManagementPage from "../features/admin/pages/UserManagementPage";
 import SystemSettingsDoctorPage from "../features/admin/pages/SystemSettingsDoctorPage";
 import GuestDetectionPage from "../features/guest/pages/GuestDetectionPage";
+import PatientLayout from "../layouts/PatientLayout";
 
 export default function AppRoutes() {
     return (
@@ -41,11 +43,12 @@ export default function AppRoutes() {
                 <Route path="settings" element={<DoctorSettingsPage />} />
             </Route>
 
-            <Route path="/patient" element={<DashboardLayout />}>
+            <Route path="/patient" element={<PatientLayout />}>
                 <Route path="dashboard" element={<PatientDashboardPage />} />
-                <Route path="history" element={<HistoricalDataPage />} />
+                <Route path="history" element={<HistoricalListPage />} />
                 <Route path="reports" element={<PatientReportPage />} />
                 <Route path="settings" element={<SystemSettingsPatient />} />
+                <Route path="history-detail" element={<HistoricalDetailPage />}></Route>
             </Route>
 
             <Route path="/admin" element={<DashboardLayout />}>
