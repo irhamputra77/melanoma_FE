@@ -13,7 +13,7 @@ export const sidebarMenus = {
     admin: [
         { label: "Overview", path: "/admin/dashboard", hideHeaderTitle: true },
         { label: "User Management", path: "/admin/users", hideHeaderTitle: true },
-        { label: "Historical Data", path: "/admin/verification", hideHeaderTitle: true },
+        { label: "Doctor Details", path: "/admin/verification", hideHeaderTitle: true },
         { label: "System Settings", path: "/admin/settings", hideHeaderTitle: true },
     ],
 }

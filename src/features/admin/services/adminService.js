@@ -2,6 +2,24 @@ import api from "../../../services/api";
 
 const adminBaseURL = import.meta.env.VITE_ADMIN_API_BASE_URL || "http://localhost:3300/api/v1/admin";
 const unwrap = (response) => response.data?.data ?? response.data;
+const unwrapList = (response) => {
+    const payload = response.data;
+    const nestedPayload = payload?.data && !Array.isArray(payload.data) ? payload.data : null;
+    const data = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(nestedPayload?.data)
+                ? nestedPayload.data
+                : [];
+    const meta = payload?.meta || nestedPayload?.meta || {
+        page: 1,
+        limit: data.length,
+        total: data.length,
+    };
+
+    return { data, meta, status: payload?.status };
+};
 const adminRequest = (config) => api.request({ baseURL: adminBaseURL, ...config });
 
 export const getAdminDashboardSummary = async () => {
@@ -51,7 +69,7 @@ export const getAdminUsers = async (params = {}) => {
             sortOrder: params.sortOrder || "desc",
         },
     });
-    return response.data;
+    return unwrapList(response);
 };
 
 export const createAdminUser = async (payload) => {
@@ -85,7 +103,7 @@ export const getAdminDoctors = async (params = {}) => {
             limit: Number(params.limit || 8),
         },
     });
-    return response.data;
+    return unwrapList(response);
 };
 
 export const getAdminDoctorVerificationRequests = async (doctorId) => {
@@ -106,8 +124,24 @@ export const rejectAdminDoctor = async (doctorId, payload) => {
     return unwrap(response);
 };
 
+export const updateAdminDoctorLicense = async (doctorId, medicalLicense) => {
+    const payload = new FormData();
+    payload.append("medicalLicense", medicalLicense);
+    const response = await adminRequest({
+        method: "patch",
+        url: `/doctors/${doctorId}/license`,
+        data: payload,
+    });
+    return unwrap(response);
+};
+
 export const getAdminSettings = async () => {
     const response = await adminRequest({ method: "get", url: "/settings" });
+    return unwrap(response);
+};
+
+export const getAdminProfile = async () => {
+    const response = await adminRequest({ method: "get", url: "/profile" });
     return unwrap(response);
 };
 

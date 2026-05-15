@@ -11,7 +11,7 @@ import {
     ShieldCheck,
     UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { sidebarMenus } from "../constants/sidebarMenus";
 import profileDoctor from "../assets/login_doctor_profile.png";
@@ -71,7 +71,7 @@ export default function DashboardLayout() {
         [notifications]
     );
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         setNotificationsLoading(true);
         setNotificationsError("");
 
@@ -83,11 +83,11 @@ export default function DashboardLayout() {
         } finally {
             setNotificationsLoading(false);
         }
-    };
+    }, [role]);
 
     useEffect(() => {
         fetchNotifications();
-    }, [role]);
+    }, [fetchNotifications]);
 
     useEffect(() => {
         const handlePointerDown = (event) => {
@@ -229,7 +229,7 @@ export default function DashboardLayout() {
 
                         <button
                             type="button"
-                            onClick={() => navigate(role === "doctor" ? "/doctor/profile" : `/${role}/settings`)}
+                            onClick={() => navigate(role === "admin" ? "/admin/profile" : role === "doctor" ? "/doctor/profile" : `/${role}/settings`)}
                             className="flex items-center gap-4"
                         >
                             <div className="text-right">
@@ -314,7 +314,7 @@ function NotificationPopover({
 
 function NotificationItem({ notification, onClick }) {
     const isRead = isNotificationRead(notification);
-    const Icon = getNotificationIcon(notification);
+    const isAnalysis = isAnalysisNotification(notification);
 
     return (
         <button
@@ -323,7 +323,7 @@ function NotificationItem({ notification, onClick }) {
             className={`flex w-full gap-4 border-b border-slate-100 px-5 py-5 text-left transition hover:bg-slate-50 ${isRead ? "opacity-70" : ""}`}
         >
             <span className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${getNotificationTone(notification)}`}>
-                <Icon size={20} />
+                {isAnalysis ? <ActivitySquare size={20} /> : <BadgeCheck size={20} />}
             </span>
             <span className="min-w-0">
                 <span className="block text-base font-extrabold leading-tight text-slate-950">
@@ -365,15 +365,13 @@ function markNotificationReadLocally(notification) {
     };
 }
 
-function getNotificationIcon(notification) {
+function isAnalysisNotification(notification) {
     const source = `${notification?.type || ""} ${getNotificationTitle(notification)} ${getNotificationMessage(notification)}`.toLowerCase();
-    if (source.includes("scan") || source.includes("analysis")) return ActivitySquare;
-    return BadgeCheck;
+    return source.includes("scan") || source.includes("analysis");
 }
 
 function getNotificationTone(notification) {
-    const source = `${notification?.type || ""} ${getNotificationTitle(notification)} ${getNotificationMessage(notification)}`.toLowerCase();
-    if (source.includes("scan") || source.includes("analysis")) {
+    if (isAnalysisNotification(notification)) {
         return "bg-emerald-50 text-emerald-600";
     }
 

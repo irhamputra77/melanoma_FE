@@ -20,6 +20,7 @@ import PatientReportPage from "../features/patient/pages/PatientReportPage";
 import SystemSettingsPatient from "../features/patient/pages/SystemSettingsPatient";
 
 import AdminDashboardPage from "../features/admin/pages/AdminDashboardPage";
+import AdminProfilePage from "../features/admin/pages/AdminProfilePage";
 import DoctorDetailsPage from "../features/admin/pages/DoctorDetailsPage";
 import UserManagementPage from "../features/admin/pages/UserManagementPage";
 import SystemSettingsDoctorPage from "../features/admin/pages/SystemSettingsDoctorPage";
@@ -39,6 +40,7 @@ const dashboardRoutes = {
     },
     admin: {
         dashboard: <AdminDashboardPage />,
+        profile: <AdminProfilePage />,
         users: <UserManagementPage />,
         verification: <DoctorDetailsPage />,
         settings: <SystemSettingsDoctorPage />,
