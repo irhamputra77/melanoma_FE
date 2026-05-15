@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Upload, UserCircle } from "lucide-react";
+import { CircleCheck, Upload } from "lucide-react";
+import profileDoctor from "../../../assets/login_doctor_profile.png";
 import { register } from "../services/authService";
 
 const initialForm = {
     role: "patient",
     name: "",
     email: "",
-    phoneNumber: "",
+    phone: "",
     birthDate: "",
     gender: "",
     password: "",
@@ -17,6 +18,7 @@ const initialForm = {
 
 const initialDoctorProfile = {
     specialization: "",
+    licenseNumber: "",
     medicalLicense: null,
     profilePhoto: null,
 };
@@ -28,7 +30,6 @@ export default function RegisterPage() {
     const [doctorProfile, setDoctorProfile] = useState(initialDoctorProfile);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-
     const isDoctorProfileStep = form.role === "doctor" && step === "doctorProfile";
 
     const handleChange = (event) => {
@@ -51,11 +52,22 @@ export default function RegisterPage() {
 
     const handleDoctorProfileChange = (event) => {
         const { name, value, files } = event.target;
+        const file = files?.[0];
+
+        if (name === "medicalLicense" && file) {
+            const fileError = validateMedicalLicenseFile(file);
+            if (fileError) {
+                setError(fileError);
+                event.target.value = "";
+                return;
+            }
+        }
 
         setDoctorProfile((current) => ({
             ...current,
-            [name]: files ? files[0] : value,
+            [name]: file || value,
         }));
+        setError("");
     };
 
     const handleMainSubmit = async (event) => {
@@ -86,13 +98,8 @@ export default function RegisterPage() {
             return;
         }
 
-        if (!doctorProfile.medicalLicense) {
-            setError("Medical license PDF wajib diunggah.");
-            return;
-        }
-
-        if (!doctorProfile.profilePhoto) {
-            setError("Profile photo wajib diunggah.");
+        if (!doctorProfile.licenseNumber.trim()) {
+            setError("Nomor lisensi dokter wajib diisi.");
             return;
         }
 
@@ -104,10 +111,16 @@ export default function RegisterPage() {
 
         try {
             await register(buildRegisterPayload(form, doctorProfile));
+
+            if (form.role === "doctor") {
+                setStep("success");
+                return;
+            }
+
             navigate("/auth/login");
         } catch (error) {
             setError(
-                error.response?.data?.message ||
+                getRegisterErrorMessage(error) ||
                 error.message ||
                 "Registration failed. Please try again."
             );
@@ -115,6 +128,29 @@ export default function RegisterPage() {
             setLoading(false);
         }
     };
+
+    if (step === "success" && form.role === "doctor") {
+        return (
+            <div className="w-full max-w-md mx-auto pt-24 text-center font-inter">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-3xl font-bold text-emerald-600">
+                    <CircleCheck size={32} />
+                </div>
+                <h2 className="text-3xl font-bold text-slate-900 mb-3 font-jakarta">
+                    Registration successful
+                </h2>
+                <p className="mx-auto max-w-sm text-slate-600 leading-relaxed">
+                    Your account has been created successfully. Your doctor registration will be reviewed and processed by the admin team.
+                </p>
+                <button
+                    type="button"
+                    onClick={() => navigate("/auth/login")}
+                    className="mt-8 w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
+                >
+                    Back to Login
+                </button>
+            </div>
+        );
+    }
 
     if (isDoctorProfileStep) {
         return (
@@ -148,6 +184,20 @@ export default function RegisterPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-slate-900 mb-2">
+                            Medical License Number
+                        </label>
+                        <input
+                            type="text"
+                            name="licenseNumber"
+                            value={doctorProfile.licenseNumber}
+                            onChange={handleDoctorProfileChange}
+                            placeholder="e.g. DRS-2023-001"
+                            className="w-full h-10 rounded-lg border border-slate-300 bg-slate-100 px-3 outline-none focus:border-blue-500 focus:bg-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-900 mb-2">
                             Medical License (PDF)
                         </label>
                         <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-sm font-medium text-slate-700 hover:border-blue-400 hover:bg-blue-50">
@@ -168,13 +218,13 @@ export default function RegisterPage() {
                             Profile Photo
                         </label>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-100 text-slate-700">
-                                <UserCircle size={42} />
+                            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100 text-slate-700">
+                                <img src={profileDoctor} alt="Doctor profile" className="h-full w-full object-cover" />
                             </div>
                             <div>
                                 <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-4 text-sm font-medium text-slate-700 hover:bg-blue-50">
                                     <Upload size={17} />
-                                    <span>{doctorProfile.profilePhoto?.name || "Upload Photo"}</span>
+                                    <span>{doctorProfile.profilePhoto?.name || "Add Photo profile"}</span>
                                     <input
                                         type="file"
                                         name="profilePhoto"
@@ -266,9 +316,9 @@ export default function RegisterPage() {
                     className="w-full border-b border-slate-300 py-3 outline-none text-sm"
                 />
                 <input
-                    name="phoneNumber"
+                    name="phone"
                     placeholder="Phone Number"
-                    value={form.phoneNumber}
+                    value={form.phone}
                     onChange={handleChange}
                     className="w-full border-b border-slate-300 py-3 outline-none text-sm"
                 />
@@ -330,7 +380,7 @@ export default function RegisterPage() {
                     disabled={loading}
                     className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold disabled:bg-blue-300"
                 >
-                    {form.role === "doctor" ? "Continue" : loading ? "Registering..." : "Register"}
+                    {loading ? "Registering..." : "Register"}
                 </button>
             </form>
 
@@ -361,8 +411,6 @@ function validateMainForm(form) {
     const requiredFields = [
         form.name,
         form.email,
-        form.phoneNumber,
-        form.birthDate,
         form.gender,
         form.password,
         form.confirmPassword,
@@ -384,30 +432,74 @@ function validateMainForm(form) {
 }
 
 function buildRegisterPayload(form, doctorProfile) {
-    const basePayload = {
-        role: form.role,
-        name: form.name,
-        email: form.email,
-        phoneNumber: form.phoneNumber,
-        birthDate: form.birthDate,
-        gender: form.gender,
-        password: form.password,
-        password_confirmation: form.confirmPassword,
-    };
+    if (form.role === "doctor") {
+        const payload = new FormData();
+        payload.append("role", "doctor");
+        payload.append("fullName", form.name);
+        payload.append("email", form.email);
+        payload.append("gender", form.gender);
+        payload.append("password", form.password);
+        payload.append("specialization", doctorProfile.specialization);
+        payload.append("licenseNumber", doctorProfile.licenseNumber);
 
-    if (form.role !== "doctor") {
-        return basePayload;
+        if (form.phone.trim()) payload.append("phoneNumber", form.phone);
+        if (form.birthDate) payload.append("birthDate", form.birthDate);
+        if (doctorProfile.medicalLicense) payload.append("medicalLicense", doctorProfile.medicalLicense);
+
+        return payload;
     }
 
-    const payload = new FormData();
+    const payload = {
+        role: "patient",
+        name: form.name,
+        email: form.email,
+        gender: form.gender,
+        password: form.password,
+    };
 
-    Object.entries(basePayload).forEach(([key, value]) => {
-        payload.append(key, value);
-    });
+    if (form.phone.trim()) {
+        payload.phone = form.phone;
+    }
 
-    payload.append("specialization", doctorProfile.specialization);
-    payload.append("medicalLicense", doctorProfile.medicalLicense);
-    payload.append("profilePhoto", doctorProfile.profilePhoto);
+    if (form.birthDate) {
+        payload.birthDate = form.birthDate;
+    }
 
     return payload;
+}
+
+function validateMedicalLicenseFile(file) {
+    if (file.type !== "application/pdf") {
+        return "Medical license harus berupa file PDF.";
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        return "Ukuran medical license maksimal 5MB.";
+    }
+
+    return "";
+}
+
+function getRegisterErrorMessage(error) {
+    const payload = error.response?.data;
+    const message =
+        payload?.message ||
+        payload?.error ||
+        payload?.data?.message ||
+        payload?.data?.error;
+
+    if (message) {
+        return message;
+    }
+
+    const errors = payload?.errors || payload?.data?.errors;
+
+    if (!errors || typeof errors !== "object") {
+        return "";
+    }
+
+    return Object.values(errors)
+        .flat()
+        .filter(Boolean)
+        .join(" ");
 }

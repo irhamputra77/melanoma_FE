@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
 import {
-    CheckCircle2,
     ChevronLeft,
     ChevronRight,
     Download,
     ListFilter,
     X,
-    XCircle,
 } from "lucide-react";
 import profileDoctor from "../../../assets/login_doctor_profile.png";
 import { toAssetUrl } from "../../../utils/assets";
 import {
-    approveAdminDoctor,
     getAdminDoctorVerificationRequests,
     getAdminDoctors,
     getAdminDoctorsSummary,
-    rejectAdminDoctor,
 } from "../services/adminService";
 
 export default function DoctorDetailsPage() {
@@ -27,7 +23,7 @@ export default function DoctorDetailsPage() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [requestLoading, setRequestLoading] = useState(false);
-    const [actionLoading, setActionLoading] = useState("");
+    const [modalError, setModalError] = useState("");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -70,53 +66,20 @@ export default function DoctorDetailsPage() {
         };
     }, [page]);
 
-    const openRequests = async (doctor) => {
+    const openDoctorDetails = async (doctor) => {
         setSelectedDoctor(doctor);
         setRequests([]);
         setRequestLoading(true);
+        setModalError("");
         setError("");
 
         try {
             const data = await getAdminDoctorVerificationRequests(doctor.id);
             setRequests(normalizeRequests(data));
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to fetch verification requests.");
+            setModalError(error.response?.data?.message || "Failed to fetch verification requests.");
         } finally {
             setRequestLoading(false);
-        }
-    };
-
-    const handleApprove = async () => {
-        if (!selectedDoctor?.id) return;
-        setActionLoading("approve");
-
-        try {
-            await approveAdminDoctor(selectedDoctor.id, { note: "Approved" });
-            setSelectedDoctor(null);
-            setDoctors((current) => current.map((doctor) =>
-                doctor.id === selectedDoctor.id ? { ...doctor, status: "Verified" } : doctor
-            ));
-        } catch (error) {
-            setError(error.response?.data?.message || "Failed to approve doctor.");
-        } finally {
-            setActionLoading("");
-        }
-    };
-
-    const handleReject = async () => {
-        if (!selectedDoctor?.id) return;
-        setActionLoading("reject");
-
-        try {
-            await rejectAdminDoctor(selectedDoctor.id, { reason: "License invalid" });
-            setSelectedDoctor(null);
-            setDoctors((current) => current.map((doctor) =>
-                doctor.id === selectedDoctor.id ? { ...doctor, status: "Rejected" } : doctor
-            ));
-        } catch (error) {
-            setError(error.response?.data?.message || "Failed to reject doctor.");
-        } finally {
-            setActionLoading("");
         }
     };
 
@@ -192,7 +155,7 @@ export default function DoctorDetailsPage() {
                         <span className="text-xs font-extrabold uppercase text-slate-700">{doctor.registrationDate}</span>
                         <span>{doctor.email}</span>
                         <span className="font-extrabold text-emerald-700">{doctor.patientLoad}</span>
-                        <button type="button" onClick={() => openRequests(doctor)} className="text-sm font-extrabold text-blue-600">
+                        <button type="button" onClick={() => openDoctorDetails(doctor)} className="text-sm font-extrabold text-blue-600">
                             Details
                         </button>
                     </div>
@@ -215,13 +178,10 @@ export default function DoctorDetailsPage() {
             </div>
 
             {selectedDoctor && (
-                <VerificationModal
-                    doctor={selectedDoctor}
+                <VerificationRequestModal
                     requests={requests}
                     loading={requestLoading}
-                    actionLoading={actionLoading}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
+                    error={modalError}
                     onClose={() => setSelectedDoctor(null)}
                 />
             )}
@@ -255,53 +215,61 @@ function PageButton({ children, active = false, disabled = false, onClick }) {
     );
 }
 
-function VerificationModal({ doctor, requests, loading, actionLoading, onApprove, onReject, onClose }) {
+function VerificationRequestModal({ requests, loading, error, onClose }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-[620px] rounded-[32px] bg-white p-8 shadow-2xl shadow-slate-900/20">
-                <div className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-extrabold text-slate-950">Verification requests</h2>
-                        <p className="mt-1 text-sm text-slate-500">{doctor.name}</p>
-                    </div>
-                    <button type="button" onClick={onClose} className="text-slate-600">
-                        <X size={24} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-[6px]">
+            <div className="w-full max-w-[420px] rounded-[28px] bg-white p-7 shadow-2xl shadow-slate-900/20">
+                <div className="mb-7 flex items-center justify-between">
+                    <h2 className="text-2xl font-extrabold text-slate-950">Verification request</h2>
+                    <button type="button" onClick={onClose} className="text-slate-600" aria-label="Close">
+                        <X size={22} />
                     </button>
                 </div>
 
-                <div className="overflow-hidden rounded-[30px] border-4 border-slate-100">
-                    <div className="grid grid-cols-[1.1fr_0.75fr_1fr] bg-slate-50 px-7 py-5 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">
+                {error && (
+                    <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                        {error}
+                    </div>
+                )}
+
+                <div className="overflow-hidden rounded-[26px] border-4 border-slate-100">
+                    <div className="grid grid-cols-[1.15fr_0.7fr_0.95fr] bg-slate-50 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">
                         <span>Patient Name</span>
                         <span>Date</span>
                         <span>Diagnosis AI</span>
                     </div>
 
-                    {loading && <div className="px-7 py-8 text-center text-sm font-semibold text-slate-500">Loading requests...</div>}
-                    {!loading && requests.length === 0 && <div className="px-7 py-8 text-center text-sm font-semibold text-slate-500">No verification requests.</div>}
+                    {loading && (
+                        <div className="px-5 py-7 text-center text-sm font-semibold text-slate-500">
+                            Loading requests...
+                        </div>
+                    )}
+
+                    {!loading && requests.length === 0 && (
+                        <div className="px-5 py-7 text-center text-sm font-semibold text-slate-500">
+                            No verification requests.
+                        </div>
+                    )}
+
                     {!loading && requests.map((request) => (
-                        <div key={request.id} className="grid grid-cols-[1.1fr_0.75fr_1fr] items-center px-7 py-6">
-                            <div className="flex items-center gap-4">
-                                <img src={toAssetUrl(request.avatar)} alt={request.patientName} className="h-10 w-10 rounded-full object-cover" />
+                        <div key={request.id} className="grid grid-cols-[1.15fr_0.7fr_0.95fr] items-center px-5 py-5">
+                            <div className="flex items-center gap-3">
+                                {request.avatar ? (
+                                    <img src={toAssetUrl(request.avatar)} alt={request.patientName} className="h-9 w-9 rounded-full object-cover" />
+                                ) : (
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-extrabold text-blue-600">
+                                        {initials(request.patientName)}
+                                    </div>
+                                )}
                                 <div>
-                                    <p className="text-lg font-extrabold text-slate-900">{request.patientName}</p>
-                                    <p className="text-sm text-slate-400">ID: #{request.id}</p>
+                                    <p className="font-extrabold leading-tight text-slate-950">{request.patientName}</p>
+                                    <p className="mt-1 text-xs text-slate-400">ID: #{request.id}</p>
                                 </div>
                             </div>
-                            <span className="text-xs font-extrabold uppercase text-slate-700">{request.date}</span>
-                            <span className="text-sm font-extrabold leading-tight text-emerald-700">{request.diagnosis}</span>
+                            <span className="text-[10px] font-extrabold uppercase text-slate-700">{request.date}</span>
+                            <span className="text-xs font-extrabold leading-tight text-emerald-700">{request.diagnosis}</span>
                         </div>
                     ))}
-                </div>
-
-                <div className="mt-6 grid grid-cols-2 gap-4">
-                    <button type="button" onClick={onReject} disabled={Boolean(actionLoading)} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-50 font-extrabold text-red-600 disabled:opacity-60">
-                        <XCircle size={18} />
-                        {actionLoading === "reject" ? "Rejecting..." : "Reject Doctor"}
-                    </button>
-                    <button type="button" onClick={onApprove} disabled={Boolean(actionLoading)} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 font-extrabold text-white disabled:bg-blue-300">
-                        <CheckCircle2 size={18} />
-                        {actionLoading === "approve" ? "Approving..." : "Approve Doctor"}
-                    </button>
                 </div>
             </div>
         </div>
@@ -318,24 +286,37 @@ function normalizeSummary(data) {
 
 function normalizeDoctor(doctor) {
     return {
-        id: doctor.id || doctor.doctorId || doctor.userId || "",
+        id: doctor.doctorId || doctor.id || "",
+        userId: doctor.userId || "",
+        displayId: doctor.clinicId || doctor.licenseNumber || doctor.doctorId || doctor.userId || "",
         name: doctor.fullName || doctor.name || doctor.full_name || "Doctor",
         registrationDate: formatDate(doctor.registrationDate || doctor.createdAt || doctor.joinedAt),
         email: doctor.email || "",
+        phone: doctor.phoneNumber || doctor.phone || "",
+        birthDate: doctor.birthDate || "",
+        gender: titleCase(doctor.gender || ""),
         patientLoad: doctor.patientLoad ?? doctor.assignedPatients ?? 0,
         status: doctor.status || doctor.verificationStatus || "",
+        specialization: doctor.specialization || "",
+        licenseNumber: doctor.licenseNumber || "",
+        licenseFile: doctor.licenseFile || "",
         avatar: doctor.profilePhotoUrl || doctor.avatarUrl || doctor.avatar || profileDoctor,
     };
 }
 
 function normalizeRequests(data) {
-    const source = Array.isArray(data) ? data : Array.isArray(data?.requests) ? data.requests : [];
+    const source = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+            ? data.data
+            : [];
+
     return source.map((request, index) => ({
-        id: request.id || request.requestId || request.scanId || `request-${index}`,
-        patientName: request.patient?.name || request.patientName || "Patient",
+        id: request.requestId || request.caseId || request.id || `request-${index}`,
+        patientName: request.patientName || request.patient?.name || "Patient",
         date: formatDate(request.date || request.createdAt),
-        diagnosis: request.diagnosis || request.aiPrediction || request.finalDiagnosis || "-",
-        avatar: request.patient?.avatarUrl || request.avatarUrl || profileDoctor,
+        diagnosis: formatDiagnosis(request.aiDiagnosis || request.diagnosis || request.aiPrediction, request.aiConfidence),
+        avatar: request.patientAvatarUrl || "",
     }));
 }
 
@@ -344,4 +325,25 @@ function formatDate(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
+}
+
+function formatDiagnosis(diagnosis, confidence) {
+    if (!diagnosis) return "-";
+    if (typeof confidence !== "number") return diagnosis;
+    return `${Math.round(confidence * 100)}% ${diagnosis}`;
+}
+
+function initials(name) {
+    const parts = String(name || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    return parts.length > 0 ? parts.map((part) => part[0]).join("").slice(0, 2).toUpperCase() : "PT";
+}
+
+function titleCase(value) {
+    return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

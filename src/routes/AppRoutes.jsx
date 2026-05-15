@@ -21,6 +21,7 @@ import HistoricalDetailPage from "../features/patient/pages/HistoricalDetailPage
 import HistoricalListPage from "../features/patient/pages/HistoricalListPage";
 
 import AdminDashboardPage from "../features/admin/pages/AdminDashboardPage";
+import AdminProfilePage from "../features/admin/pages/AdminProfilePage";
 import DoctorDetailsPage from "../features/admin/pages/DoctorDetailsPage";
 import UserManagementPage from "../features/admin/pages/UserManagementPage";
 import SystemSettingsDoctorPage from "../features/admin/pages/SystemSettingsDoctorPage";
@@ -41,6 +42,7 @@ const dashboardRoutes = {
     },
     admin: {
         dashboard: <AdminDashboardPage />,
+        profile: <AdminProfilePage />,
         users: <UserManagementPage />,
         verification: <DoctorDetailsPage />,
         settings: <SystemSettingsDoctorPage />,

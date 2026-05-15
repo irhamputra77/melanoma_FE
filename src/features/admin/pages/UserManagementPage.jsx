@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+    BadgeCheck,
+    CalendarDays,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
@@ -14,7 +16,10 @@ import { toAssetUrl } from "../../../utils/assets";
 import {
     createAdminUser,
     deleteAdminUser,
+    getAdminDoctors,
     getAdminUsers,
+    approveAdminDoctor,
+    rejectAdminDoctor,
     updateAdminUser,
 } from "../services/adminService";
 
@@ -26,35 +31,39 @@ const blankUser = {
     phone: "",
     birthDate: "",
     password: "",
+    specialization: "",
+    licenseNumber: "",
+    medicalLicense: null,
 };
 
 export default function UserManagementPage() {
     const [activeFilter, setActiveFilter] = useState("All Roles");
     const [modalMode, setModalMode] = useState("");
     const [selectedUser, setSelectedUser] = useState(null);
+    const [verificationUser, setVerificationUser] = useState(null);
+    const [deleteUser, setDeleteUser] = useState(null);
     const [users, setUsers] = useState([]);
     const [page, setPage] = useState(1);
     const [meta, setMeta] = useState({ page: 1, limit: 8, total: 0 });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState("");
+    const [modalError, setModalError] = useState("");
+    const [success, setSuccess] = useState("");
 
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
         setError("");
 
-        getAdminUsers({
-            role: activeFilter === "All Roles" ? "" : activeFilter.slice(0, -1).toLowerCase(),
-            page,
-            limit: 8,
-        })
-            .then((response) => {
+        Promise.all([fetchUsers(activeFilter, page), fetchDoctorProfiles()])
+            .then(([response, doctorProfiles]) => {
                 if (!isMounted) return;
 
-                const data = Array.isArray(response.data) ? response.data : [];
-                setUsers(data.map(normalizeUser));
-                setMeta(response.meta || { page, limit: 8, total: data.length });
+                const { data, meta: responseMeta } = parseUsersResponse(response);
+                setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
+                setMeta(responseMeta || { page, limit: 8, total: data.length });
             })
             .catch((error) => {
                 if (isMounted) {
@@ -79,26 +88,41 @@ export default function UserManagementPage() {
     }, [users]);
 
     const openAddModal = () => {
+        setSuccess("");
+        setModalError("");
         setSelectedUser(blankUser);
         setModalMode("add");
     };
 
     const openEditModal = (user) => {
-        setSelectedUser({ ...user, password: "password123" });
+        setSuccess("");
+        setModalError("");
+        setSelectedUser({ ...user, password: "" });
         setModalMode("edit");
     };
 
     const closeModal = () => {
         setSelectedUser(null);
         setModalMode("");
+        setModalError("");
     };
 
     const handleSaveUser = async (event) => {
         event.preventDefault();
         setSaving(true);
         setError("");
+        setModalError("");
+        setSuccess("");
 
         try {
+            const isAdd = modalMode === "add";
+            const validationError = validateUserForm(selectedUser, isAdd);
+
+            if (validationError) {
+                setModalError(validationError);
+                return;
+            }
+
             if (modalMode === "add") {
                 await createAdminUser(toUserPayload(selectedUser, true));
             } else {
@@ -106,32 +130,85 @@ export default function UserManagementPage() {
             }
 
             closeModal();
-            setPage(1);
-            const response = await getAdminUsers({
-                role: activeFilter === "All Roles" ? "" : activeFilter.slice(0, -1).toLowerCase(),
-                page: 1,
-                limit: 8,
-            });
-            const data = Array.isArray(response.data) ? response.data : [];
-            setUsers(data.map(normalizeUser));
-            setMeta(response.meta || { page: 1, limit: 8, total: data.length });
+            const nextPage = isAdd ? 1 : page;
+            if (isAdd) {
+                setPage(1);
+            }
+            const [response, doctorProfiles] = await Promise.all([
+                fetchUsers(activeFilter, nextPage),
+                fetchDoctorProfiles(),
+            ]);
+            const { data, meta: responseMeta } = parseUsersResponse(response);
+            setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
+            setMeta(responseMeta || { page: nextPage, limit: 8, total: data.length });
+            setSuccess(isAdd ? "User berhasil ditambahkan." : "User berhasil diperbarui.");
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to save user.");
+            setModalError(getApiErrorMessage(error) || "Failed to save user.");
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDeleteUser = async (userId) => {
-        if (!userId) return;
+    const handleDeleteUser = async () => {
+        if (!deleteUser?.id) return;
+        setDeleting(true);
         setError("");
+        setSuccess("");
 
         try {
-            await deleteAdminUser(userId);
-            setUsers((current) => current.filter((user) => user.id !== userId));
-            setMeta((current) => ({ ...current, total: Math.max(0, current.total - 1) }));
+            await deleteAdminUser(deleteUser.id);
+
+            const shouldMoveBack = users.length === 1 && page > 1;
+            const nextPage = shouldMoveBack ? page - 1 : page;
+            if (shouldMoveBack) {
+                setPage(nextPage);
+            }
+
+            const [response, doctorProfiles] = await Promise.all([
+                fetchUsers(activeFilter, nextPage),
+                fetchDoctorProfiles(),
+            ]);
+            const { data, meta: responseMeta } = parseUsersResponse(response);
+            setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
+            setMeta(responseMeta || { page: nextPage, limit: 8, total: data.length });
+            setDeleteUser(null);
+            setSuccess("User deleted successfully.");
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to delete user.");
+            setModalError(getDeleteErrorMessage(error));
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleVerificationAction = async (action) => {
+        if (!verificationUser?.doctorId) {
+            setModalError("Doctor profile belum tersedia untuk user ini.");
+            return;
+        }
+
+        setSaving(action);
+        setModalError("");
+
+        try {
+            if (action === "approve") {
+                await approveAdminDoctor(verificationUser.doctorId, { note: "Approved from user management" });
+            } else {
+                await rejectAdminDoctor(verificationUser.doctorId, { reason: "Rejected from user management" });
+            }
+
+            const [response, doctorProfiles] = await Promise.all([
+                fetchUsers(activeFilter, page),
+                fetchDoctorProfiles(),
+            ]);
+            const { data, meta: responseMeta } = parseUsersResponse(response);
+            setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
+            setMeta(responseMeta || { page, limit: 8, total: data.length });
+            setVerificationUser(null);
+            setSuccess(action === "approve" ? "Doctor berhasil disetujui." : "Doctor berhasil ditolak.");
+        } catch (error) {
+            setModalError(getApiErrorMessage(error) || `Failed to ${action} doctor.`);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -177,9 +254,14 @@ export default function UserManagementPage() {
                 ))}
             </div>
 
-            {error && (
+            {error && !modalMode && !verificationUser && !deleteUser && (
                 <div className="mb-6 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600">
                     {error}
+                </div>
+            )}
+            {success && (
+                <div className="mb-6 rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
+                    {success}
                 </div>
             )}
 
@@ -215,9 +297,19 @@ export default function UserManagementPage() {
                             <span className="text-sm">{user.email}</span>
                             <StatusBadge status={user.status} />
                             <div className="flex items-center gap-5">
-                                <button type="button" className="text-blue-400" aria-label="Verify user">
-                                    <ShieldCheck size={21} />
-                                </button>
+                                {user.role === "Doctor" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setModalError("");
+                                            setVerificationUser(user);
+                                        }}
+                                        className="text-blue-400"
+                                        aria-label="Verify doctor"
+                                    >
+                                        <ShieldCheck size={21} />
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => openEditModal(user)}
@@ -228,7 +320,11 @@ export default function UserManagementPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => handleDeleteUser(user.id)}
+                                    onClick={() => {
+                                        setSuccess("");
+                                        setModalError("");
+                                        setDeleteUser(user);
+                                    }}
                                     className="text-red-300"
                                     aria-label="Delete user"
                                 >
@@ -255,6 +351,34 @@ export default function UserManagementPage() {
                     onClose={closeModal}
                     onSubmit={handleSaveUser}
                     saving={saving}
+                    error={modalError}
+                />
+            )}
+
+            {deleteUser && (
+                <DeleteUserModal
+                    user={deleteUser}
+                    deleting={deleting}
+                    error={modalError}
+                    onCancel={() => {
+                        setModalError("");
+                        setDeleteUser(null);
+                    }}
+                    onConfirm={handleDeleteUser}
+                />
+            )}
+
+            {verificationUser && (
+                <DoctorRegistrationModal
+                    user={verificationUser}
+                    saving={saving}
+                    error={modalError}
+                    onApprove={() => handleVerificationAction("approve")}
+                    onReject={() => handleVerificationAction("reject")}
+                    onClose={() => {
+                        setModalError("");
+                        setVerificationUser(null);
+                    }}
                 />
             )}
         </div>
@@ -273,7 +397,7 @@ function UserIdentity({ user }) {
             )}
             <div>
                 <p className="text-lg font-extrabold text-slate-900">{user.name}</p>
-                <p className="text-sm text-slate-400">ID: #{user.id}</p>
+                <p className="text-sm text-slate-400">ID: #{user.displayId || user.id}</p>
             </div>
         </div>
     );
@@ -316,7 +440,7 @@ function Pagination({ page, total, limit, onPageChange }) {
     );
 }
 
-function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false }) {
+function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false, error = "" }) {
     const isEdit = mode === "edit";
 
     const updateField = (field, value) => {
@@ -324,7 +448,7 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-[6px]">
             <form
                 onSubmit={onSubmit}
                 className="w-full max-w-[520px] rounded-[32px] bg-white p-8 shadow-2xl shadow-slate-900/20"
@@ -344,6 +468,12 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false }) {
                 </div>
 
                 <div className="space-y-4">
+                    {error && (
+                        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                            {error}
+                        </div>
+                    )}
+
                     <ModalField
                         label="Full Name"
                         value={user.name}
@@ -355,7 +485,7 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false }) {
                         <ModalSelect
                             label="Role"
                             value={user.role}
-                            options={["Doctor", "Patient"]}
+                            options={["Admin", "Doctor", "Patient"]}
                             onChange={(value) => updateField("role", value)}
                         />
                         <ModalSelect
@@ -384,20 +514,55 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false }) {
                         placeholder="April 23, 1996"
                         onChange={(value) => updateField("birthDate", value)}
                     />
-                    <ModalField
-                        label="Password"
-                        value={user.password}
-                        placeholder="password123"
-                        type="password"
-                        onChange={(value) => updateField("password", value)}
-                    />
+                    {!isEdit && user.role === "Doctor" && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <ModalField
+                                label="Specialization"
+                                value={user.specialization}
+                                placeholder="Dermatology"
+                                onChange={(value) => updateField("specialization", value)}
+                            />
+                            <ModalField
+                                label="License Number"
+                                value={user.licenseNumber}
+                                placeholder="DRS-2023-001"
+                                onChange={(value) => updateField("licenseNumber", value)}
+                            />
+                            <div className="col-span-2">
+                                <ModalFileField
+                                    label="Medical License"
+                                    file={user.medicalLicense}
+                                    accept="application/pdf,.pdf"
+                                    placeholder="Upload PDF file"
+                                    onChange={(file) => updateField("medicalLicense", file)}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {isEdit && user.role === "Doctor" && (
+                        <ModalSelect
+                            label="Status"
+                            value={user.status}
+                            options={["Active", "Pending", "Inactive"]}
+                            onChange={(value) => updateField("status", value)}
+                        />
+                    )}
+                    {!isEdit && (
+                        <ModalField
+                            label="Password"
+                            value={user.password}
+                            placeholder="password123"
+                            type="password"
+                            onChange={(value) => updateField("password", value)}
+                        />
+                    )}
                 </div>
 
                 <div className="mt-8 grid grid-cols-[0.75fr_1.25fr] gap-4">
                     <button type="button" onClick={onClose} className="h-14 rounded-xl bg-slate-200 text-base font-extrabold text-slate-900">
                         Cancel
                     </button>
-                    <button type="submit" disabled={saving} className="h-14 rounded-xl bg-blue-600 text-base font-extrabold text-white shadow-lg shadow-blue-600/25 disabled:bg-blue-300">
+                    <button type="submit" disabled={Boolean(saving)} className="h-14 rounded-xl bg-blue-600 text-base font-extrabold text-white shadow-lg shadow-blue-600/25 disabled:bg-blue-300">
                         {saving ? "Saving..." : isEdit ? "Save changes" : "Create Account"}
                     </button>
                 </div>
@@ -406,29 +571,206 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false }) {
     );
 }
 
-function normalizeUser(user) {
+function DeleteUserModal({ user, deleting, error = "", onCancel, onConfirm }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-[6px]">
+            <div className="w-full max-w-[420px] rounded-[28px] bg-white p-7 shadow-2xl shadow-slate-900/20">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-2xl font-extrabold text-slate-950">Hapus user?</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                            Data <span className="font-bold text-slate-700">{user.name || user.email}</span> akan dihapus permanen dari sistem. Tindakan ini tidak dapat dibatalkan.
+                        </p>
+                    </div>
+                    <button type="button" onClick={onCancel} className="text-slate-500" aria-label="Close">
+                        <X size={22} />
+                    </button>
+                </div>
+
+                <div className="mt-7 grid grid-cols-2 gap-3">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={deleting}
+                        className="h-12 rounded-xl bg-slate-100 font-extrabold text-slate-700 disabled:opacity-60"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={deleting}
+                        className="h-12 rounded-xl bg-red-600 font-extrabold text-white shadow-lg shadow-red-600/20 disabled:bg-red-300"
+                    >
+                        {deleting ? "Deleting..." : "Delete"}
+                    </button>
+                </div>
+                {error && (
+                    <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                        {error}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function DoctorRegistrationModal({ user, saving, error = "", onApprove, onReject, onClose }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-[6px]">
+            <div className="w-full max-w-[430px] overflow-hidden rounded-xl bg-white shadow-2xl shadow-slate-900/20">
+                <div className="flex h-12 items-center justify-between bg-blue-600 px-5 text-white">
+                    <h2 className="text-sm font-extrabold">New Doctor Registration</h2>
+                    <button type="button" onClick={onClose} className="text-white" aria-label="Close">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-5">
+                    {error && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{error}</div>}
+                    <div className="mb-4 flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-extrabold text-white">
+                            {initials(user.name)}
+                        </div>
+                        <div>
+                            <p className="font-extrabold text-slate-950">{user.name || "Doctor"}</p>
+                            <p className="text-xs font-semibold text-slate-500">ID: {user.displayId || user.id || "-"}</p>
+                            <span className="mt-1 inline-flex rounded-full bg-blue-100 px-3 py-1 text-[10px] font-extrabold text-blue-600">
+                                {user.specialization || "-"}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <InfoBox label="Email" value={user.email || "-"} />
+                        <InfoBox label="Phone" value={user.phone || "-"} />
+                        <InfoBox label="Birth Date" value={formatReadableDate(user.birthDate)} />
+                        <InfoBox label="Gender" value={user.gender || "-"} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between rounded-lg bg-slate-100 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+                                <CalendarDays size={16} />
+                            </span>
+                            <div>
+                                <p className="text-sm font-extrabold text-slate-950">{user.licenseNumber || "-"}</p>
+                                <p className="text-xs text-slate-500">{user.licenseFile || "-"}</p>
+                            </div>
+                        </div>
+                        <button type="button" disabled={!user.licenseFile} className="rounded-md bg-white px-3 py-2 text-xs font-extrabold text-blue-600 disabled:text-slate-400">
+                            View
+                        </button>
+                    </div>
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                        <button type="button" onClick={onReject} disabled={Boolean(saving) || !user.doctorId} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-red-600 disabled:opacity-60">
+                            <X size={15} />
+                            {saving === "reject" ? "Rejecting..." : "Reject"}
+                        </button>
+                        <button type="button" onClick={onApprove} disabled={Boolean(saving) || !user.doctorId} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 text-xs font-extrabold text-white shadow-lg shadow-blue-600/20 disabled:bg-blue-300">
+                            <BadgeCheck size={15} />
+                            {saving === "approve" ? "Approving..." : "Approve"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function InfoBox({ label, value }) {
+    return (
+        <div className="rounded-lg bg-slate-100 px-4 py-3">
+            <p className="mb-1 text-[10px] font-bold text-slate-500">{label}</p>
+            <p className="truncate text-xs font-semibold text-slate-950">{value}</p>
+        </div>
+    );
+}
+
+function normalizeUser(user, doctorProfiles = {}) {
+    const doctorProfile = doctorProfiles[user.userId || user.id] || {};
     return {
-        id: user.id || user.userId || "",
+        id: user.userId || user.id || "",
+        doctorId: doctorProfile.doctorId || "",
+        displayId: user.clinicId || user.medicalId || user.displayId || user.id || "",
         name: user.fullName || user.name || user.full_name || "",
         role: titleCase(user.role || "patient"),
         gender: titleCase(user.gender || ""),
         email: user.email || "",
         phone: user.phoneNumber || user.phone || "",
         birthDate: toDateInputValue(user.birthDate || user.birth_date || ""),
-        status: titleCase(user.status || "active"),
+        status: titleCase(doctorProfile.status || user.status || "active"),
         avatar: user.profilePhotoUrl || user.avatarUrl || user.avatar || profileDoctor,
+        specialization: doctorProfile.specialization || user.specialization || "",
+        licenseNumber: doctorProfile.licenseNumber || user.licenseNumber || user.medicalLicenseNumber || user.registrationNumber || "",
+        medicalLicense: null,
+        licenseFile: doctorProfile.licenseFile || user.licenseFile || user.medicalLicenseFile || user.licenseDocument || "",
     };
 }
 
+function parseUsersResponse(response) {
+    const nestedPayload = response?.data && !Array.isArray(response.data) ? response.data : null;
+    const data = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(nestedPayload?.data)
+                ? nestedPayload.data
+                : [];
+    const meta = response?.meta || nestedPayload?.meta;
+
+    return { data, meta };
+}
+
+function fetchUsers(activeFilter, page) {
+    return getAdminUsers({
+        role: activeFilter === "All Roles" ? "" : activeFilter.slice(0, -1).toLowerCase(),
+        page,
+        limit: 8,
+    });
+}
+
+async function fetchDoctorProfiles() {
+    const response = await getAdminDoctors({ page: 1, limit: 100 });
+    return Object.fromEntries(
+        (response.data || []).map((doctor) => [doctor.userId, doctor])
+    );
+}
+
 function toUserPayload(user, includePassword) {
+    if (includePassword && String(user.role || "").toLowerCase() === "doctor") {
+        const payload = new FormData();
+        payload.append("fullName", user.name);
+        payload.append("email", user.email);
+        payload.append("role", "doctor");
+        payload.append("gender", String(user.gender || "").toLowerCase());
+        payload.append("password", user.password);
+        payload.append("specialization", user.specialization);
+        payload.append("licenseNumber", user.licenseNumber);
+
+        if (user.phone) payload.append("phoneNumber", user.phone);
+        if (user.birthDate) payload.append("birthDate", user.birthDate);
+        if (user.medicalLicense) payload.append("medicalLicense", user.medicalLicense);
+
+        return payload;
+    }
+
     const payload = {
         fullName: user.name,
         email: user.email,
         role: String(user.role || "").toLowerCase(),
         gender: String(user.gender || "").toLowerCase(),
-        phoneNumber: user.phone,
-        birthDate: user.birthDate,
     };
+
+    if (user.phone) {
+        payload.phoneNumber = user.phone;
+    }
+
+    if (user.birthDate) {
+        payload.birthDate = user.birthDate;
+    }
+
+    if (!includePassword && String(user.role || "").toLowerCase() === "doctor" && user.status) {
+        payload.status = String(user.status).toLowerCase();
+    }
 
     if (includePassword) {
         payload.password = user.password;
@@ -437,10 +779,82 @@ function toUserPayload(user, includePassword) {
     return payload;
 }
 
+function validateUserForm(user, includePassword) {
+    if (!user.name?.trim()) return "Full name wajib diisi.";
+    if (!user.email?.trim()) return "Email wajib diisi.";
+    if (!["admin", "doctor", "patient"].includes(String(user.role || "").toLowerCase())) {
+        return "Role harus admin, doctor, atau patient.";
+    }
+    if (!["male", "female"].includes(String(user.gender || "").toLowerCase())) {
+        return "Gender harus male atau female.";
+    }
+    if (includePassword && String(user.password || "").length < 6) {
+        return "Password minimal 6 karakter.";
+    }
+    if (includePassword && String(user.role || "").toLowerCase() === "doctor") {
+        if (!user.specialization?.trim()) return "Specialization wajib diisi untuk doctor.";
+        if (!user.licenseNumber?.trim()) return "License number wajib diisi untuk doctor.";
+        const fileError = validateMedicalLicenseFile(user.medicalLicense);
+        if (fileError) return fileError;
+    }
+
+    return "";
+}
+
+function getApiErrorMessage(error) {
+    const payload = error.response?.data;
+
+    if (payload?.message) {
+        return payload.message;
+    }
+
+    if (payload?.error) {
+        return payload.error;
+    }
+
+    if (payload?.errors && typeof payload.errors === "object") {
+        return Object.values(payload.errors)
+            .flat()
+            .filter(Boolean)
+            .join(" ");
+    }
+
+    return "";
+}
+
+function getDeleteErrorMessage(error) {
+    const statusCode = error.response?.status;
+
+    if (statusCode >= 500) {
+        return "User gagal dihapus karena masih memiliki data terkait atau terjadi kendala di server.";
+    }
+
+    return getApiErrorMessage(error) || "Failed to delete user.";
+}
+
+function validateMedicalLicenseFile(file) {
+    if (!file) return "";
+    if (file.type !== "application/pdf") return "Medical license harus berupa file PDF.";
+    if (file.size > 5 * 1024 * 1024) return "Ukuran medical license maksimal 5MB.";
+    return "";
+}
+
 function titleCase(value) {
     return String(value || "")
         .replace(/_/g, " ")
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function initials(name) {
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    return parts.length > 0 ? parts.map((part) => part[0]).join("").slice(0, 3).toUpperCase() : "DR";
+}
+
+function formatReadableDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
 }
 
 function toDateInputValue(value) {
@@ -462,6 +876,25 @@ function ModalField({ label, value, placeholder, onChange, type = "text" }) {
                 placeholder={placeholder}
                 onChange={(event) => onChange(event.target.value)}
                 className="h-12 w-full rounded-xl bg-slate-100 px-4 text-slate-900 outline-none placeholder:text-slate-400"
+            />
+        </label>
+    );
+}
+
+function ModalFileField({ label, file, placeholder, accept, onChange }) {
+    return (
+        <label className="block">
+            <span className="mb-2 block text-xs font-extrabold uppercase tracking-[0.18em] text-slate-600">
+                {label}
+            </span>
+            <span className="flex h-12 cursor-pointer items-center rounded-xl bg-slate-100 px-4 text-slate-900">
+                {file?.name || placeholder}
+            </span>
+            <input
+                type="file"
+                accept={accept}
+                onChange={(event) => onChange(event.target.files?.[0] || null)}
+                className="hidden"
             />
         </label>
     );
