@@ -26,8 +26,8 @@ const defaultSettings = {
         twoFactorEnabled: false,
     },
     notifications: {
-        emailNotifications: false,
-        verificationAlerts: false,
+        emailNotifications: true,
+        verificationAlerts: true,
     },
     privacy: {
         dataVisibility: "restricted_clinical_team_only",
@@ -52,9 +52,9 @@ export default function DoctorSettingsPage() {
             .then((data) => {
                 if (!isMounted) return;
 
-                const normalized = normalizeSettings(data);
-                setSettings(normalized);
-                setInitialSettings(normalized);
+                const nextSettings = toDoctorSettings(data);
+                setSettings(nextSettings);
+                setInitialSettings(nextSettings);
             })
             .catch((error) => {
                 if (isMounted) {
@@ -139,9 +139,9 @@ export default function DoctorSettingsPage() {
                 updateDoctorPreferences(settings.preferences),
             ]);
 
-            const normalized = normalizeSettings(settings);
-            setSettings(normalized);
-            setInitialSettings(normalized);
+            const nextSettings = toDoctorSettings(settings);
+            setSettings(nextSettings);
+            setInitialSettings(nextSettings);
             setSuccess("Preferences saved.");
         } catch (error) {
             setError(error.response?.data?.message || "Failed to save preferences.");
@@ -318,35 +318,21 @@ function Field({ label, value, onChange, readOnly = false }) {
     );
 }
 
-function normalizeSettings(data) {
-    const account = data?.account || {};
-    const notifications = data?.notifications || {};
-    const privacy = data?.privacy || {};
-    const preferences = data?.preferences || {};
-
+function toDoctorSettings(data) {
     return {
         account: {
-            ...defaultSettings.account,
-            email: account.email || data?.email || "",
-            twoFactorEnabled: Boolean(
-                account.twoFactorEnabled ??
-                account.enabled ??
-                data?.twoFactorEnabled ??
-                data?.twoFactor?.enabled
-            ),
+            email: data?.account?.email ?? defaultSettings.account.email,
+            twoFactorEnabled: data?.account?.twoFactorEnabled ?? defaultSettings.account.twoFactorEnabled,
         },
         notifications: {
-            ...defaultSettings.notifications,
-            emailNotifications: Boolean(notifications.emailNotifications ?? data?.emailNotifications),
-            verificationAlerts: Boolean(notifications.verificationAlerts ?? data?.verificationAlerts),
+            emailNotifications: data?.notifications?.emailNotifications ?? defaultSettings.notifications.emailNotifications,
+            verificationAlerts: data?.notifications?.verificationAlerts ?? defaultSettings.notifications.verificationAlerts,
         },
         privacy: {
-            ...defaultSettings.privacy,
-            dataVisibility: privacy.dataVisibility || data?.dataVisibility || defaultSettings.privacy.dataVisibility,
+            dataVisibility: data?.privacy?.dataVisibility ?? defaultSettings.privacy.dataVisibility,
         },
         preferences: {
-            ...defaultSettings.preferences,
-            language: preferences.language || data?.language || defaultSettings.preferences.language,
+            language: data?.preferences?.language ?? defaultSettings.preferences.language,
         },
     };
 }
