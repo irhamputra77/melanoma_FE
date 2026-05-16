@@ -3,9 +3,20 @@ import { useParams } from 'react-router-dom';
 import LoadingButton from '../../../components/common/LoadingButton';
 import { getPatientScanDetail, sharePatientScan, exportScanPdf } from '../services/patientService';
 
+// Helper murni tanpa fallback
+const resolveImageUrl = (path) => {
+  if (!path) return "";
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return path;
+  
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3300/api/v1';
+  const baseUrl = apiUrl.split('/api')[0]; 
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 const HistoricalDetailPage = () => {
   const { id } = useParams();
   const [scanDetail, setScanDetail] = useState(null);
+  const [imgSrc, setImgSrc] = useState('');
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
@@ -17,6 +28,8 @@ const HistoricalDetailPage = () => {
       try {
         const data = await getPatientScanDetail(id);
         setScanDetail(data);
+        // Langsung parsing image dari API response
+        setImgSrc(resolveImageUrl(data.imageUrl)); 
       } catch (error) {
         setErrorMessage(error.response?.data?.message || 'Gagal memuat detail data historis.');
       } finally {
@@ -72,14 +85,17 @@ const HistoricalDetailPage = () => {
   if (!scanDetail) return <div className="p-8 text-center text-gray-500">Data rekam medis tidak ditemukan.</div>;
 
   const formattedDate = new Date(scanDetail.createdAt).toLocaleString();
-  const isVerified = scanDetail.status === 'verified';
+  const isVerified = scanDetail.status === 'verified' || scanDetail.status === 'approved';
+
+  let confValue = Number(scanDetail.aiConfidence || scanDetail.analysis?.confidence || 0);
+  let displayConf = confValue > 1 ? confValue.toFixed(1) : (confValue * 100).toFixed(1);
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Record #{scanDetail.id?.substring(0,8).toUpperCase()}</h1>
-          <p className="text-gray-600">Scan conducted on {formattedDate}. Location: {scanDetail.location || 'Unknown'}.</p>
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Record #{scanDetail.scanId || scanDetail.id?.substring(0,8).toUpperCase()}</h1>
+          <p className="text-gray-600">Scan conducted on {formattedDate}. Location: {scanDetail.bodySite || 'Unknown'}.</p>
         </div>
         <div className="flex space-x-3">
           <LoadingButton 
@@ -104,8 +120,14 @@ const HistoricalDetailPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="relative rounded-3xl overflow-hidden shadow-sm h-[450px] bg-black">
-            <img src={scanDetail.imageUrl} alt="Lesion" className="w-full h-full object-contain" />
+          
+          <div className="relative rounded-3xl overflow-hidden shadow-sm h-[450px] bg-[#0d0d0d] border border-gray-200">
+            {/* GAMBAR LANGSUNG DI-LOAD DARI API */}
+            {imgSrc ? (
+                <img src={imgSrc} alt="Lesion" className="w-full h-full object-contain p-2" />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">Image data not available</div>
+            )}
             <span className="absolute bottom-6 left-6 bg-white/90 text-gray-900 text-xs font-bold px-3 py-1.5 rounded-lg tracking-wider">ORIGINAL CAPTURE</span>
           </div>
 
@@ -115,12 +137,12 @@ const HistoricalDetailPage = () => {
               <div className="bg-gray-50 p-4 rounded-2xl border-b-2 border-blue-600">
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Confidence</p>
                 <p className="text-2xl font-extrabold text-[#0A58CA]">
-                  {scanDetail.analysis?.confidence ? `${(scanDetail.analysis.confidence * 100).toFixed(1)}%` : '--%'}
+                  {displayConf === "0.0" ? '--%' : `${displayConf}%`}
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-2xl">
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Classification</p>
-                <p className="text-2xl font-bold text-gray-900">{scanDetail.analysis?.classification || '-'}</p>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Prediction</p>
+                <p className="text-2xl font-bold text-gray-900">{scanDetail.aiPrediction || scanDetail.analysis?.classification || '-'}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-2xl">
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Type</p>
@@ -128,7 +150,7 @@ const HistoricalDetailPage = () => {
               </div>
             </div>
             <div className="bg-[#F8F9FA] p-4 rounded-xl text-sm text-gray-600 leading-relaxed border border-gray-100">
-              <span className="text-[#0A58CA] font-bold">Observation:</span> {scanDetail.analysis?.observation || 'No additional observation data.'}
+              <span className="text-[#0A58CA] font-bold">Patient Complaint:</span> {scanDetail.complaint || 'No additional observation data.'}
             </div>
           </div>
         </div>
@@ -149,14 +171,14 @@ const HistoricalDetailPage = () => {
               </div>
               <div className="flex">
                 <div className="flex flex-col items-center mr-4">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${scanDetail.analysis ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${scanDetail.aiPrediction ? 'bg-blue-600' : 'bg-gray-300'}`}>
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
                   </div>
                   <div className="w-0.5 h-10 bg-gray-200 my-1"></div>
                 </div>
                 <div>
-                  <p className={`font-bold text-sm ${scanDetail.analysis ? 'text-gray-900' : 'text-gray-400'}`}>Analyzed</p>
-                  <p className="text-xs text-gray-500">{scanDetail.analysis ? 'AI Core Model Executed' : 'Pending'}</p>
+                  <p className={`font-bold text-sm ${scanDetail.aiPrediction ? 'text-gray-900' : 'text-gray-400'}`}>Analyzed</p>
+                  <p className="text-xs text-gray-500">{scanDetail.aiPrediction ? 'AI Core Model Executed' : 'Pending'}</p>
                 </div>
               </div>
               <div className="flex">

@@ -1,12 +1,27 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const RecentScanCard = ({ scanId, date, title, status, isVerified, image }) => {
-  const navigate = useNavigate();
+// Helper murni tanpa fallback image. Menggabungkan URL backend dan path gambar.
+const resolveImageUrl = (path) => {
+  if (!path) return "";
+  
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) {
+    return path;
+  }
+  
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3300/api/v1';
+  const baseUrl = apiUrl.split('/api')[0]; 
+  
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
 
-  // Handler navigasi
+const RecentScanCard = ({ id, scanId, date, title, status, isVerified, image }) => {
+  const navigate = useNavigate();
+  
+  // Langsung me-resolve gambar dari API
+  const imgSrc = resolveImageUrl(image);
+
   const handleNavigate = () => {
-    // PERBAIKAN: Menyertakan id ke dalam path URL
     if (id) {
       navigate(`/patient/history-detail/${id}`);
     }
@@ -28,8 +43,13 @@ const RecentScanCard = ({ scanId, date, title, status, isVerified, image }) => {
       className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm hover:shadow-md hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer group"
     >
       <div className="flex items-center space-x-4">
-        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100">
-          <img src={image} alt="Scan thumbnail" className="w-full h-full object-cover" />
+        {/* Kontainer Gambar Thumbnail */}
+        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0 border border-gray-200">
+          <img 
+            src={imgSrc} 
+            alt="Scan thumbnail" 
+            className="w-full h-full object-cover" 
+          />
         </div>
         <div>
           <p className="text-xs text-gray-500 font-medium mb-1">
