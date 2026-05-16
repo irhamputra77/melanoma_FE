@@ -65,7 +65,7 @@ export default function AppRoutes() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<RolePage page="dashboard" />} />
                 <Route path="history" element={<RolePage page="history" />} />
-                <Route path="history-detail" element={<RolePage page="history-detail" />} />
+                <Route path="history-detail/:id" element={<RolePage page="history-detail" />} />
                 <Route path="profile" element={<RolePage page="profile" />} />
                 <Route path="reports" element={<RolePage page="reports" />} />
                 <Route path="users" element={<RolePage page="users" />} />

@@ -1,12 +1,82 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import LoadingButton from '../../../components/common/LoadingButton';
+import { getPatientReports, downloadPatientReport } from '../services/patientService';
 
 const PatientReportPage = () => {
-  const reports = [
-    { id: 'MS-204-881', date: 'Oct 24, 2023', finding: 'Consistent with atypical melanocytic proliferation...', status: 'VERIFIED', isUrgent: false },
-    { id: 'MS-112-402', date: 'Oct 22, 2023', finding: 'Benign seborrheic keratosis. No immediate surgical intervention required. Bi-annual...', status: 'REVIEWING', isUrgent: false },
-    { id: 'MS-993-219', date: 'Oct 21, 2023', finding: 'High-confidence melanoma detection (Level 3). Immediate...', status: 'URGENT', isUrgent: true },
-    { id: 'MS-552-334', date: 'Oct 19, 2023', finding: 'Benign nevus stable from previous scan. Recommendation to...', status: 'VERIFIED', isUrgent: false }
-  ];
+  const [reports, setReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
+  
+  // Filter States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState(''); // Filter State
+  
+  // Pagination Meta
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchReports = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = { 
+        page: currentPage, 
+        limit: 10 
+      };
+
+      if (searchTerm.trim() !== '') params.search = searchTerm.trim();
+      if (statusFilter !== '') params.status = statusFilter;
+
+      const response = await getPatientReports(params);
+      
+      setReports(response.data || []);
+      setTotalPages(response.meta?.lastPage || 1);
+    } catch (error) {
+      console.error("Gagal memuat laporan:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, searchTerm, statusFilter]);
+
+  // Re-fetch saat page atau statusFilter berubah
+  useEffect(() => {
+    fetchReports();
+  }, [currentPage, statusFilter, fetchReports]);
+
+  // Eksekusi pencarian teks (Enter)
+  const handleSearchKey = (e) => {
+    if (e.key === 'Enter') {
+      setCurrentPage(1);
+      fetchReports();
+    }
+  };
+
+  const handleSearchClick = () => {
+    setCurrentPage(1);
+    fetchReports();
+  };
+
+  const handleStatusChange = (e) => {
+    setStatusFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleDownload = async (reportId) => {
+    setDownloadingId(reportId);
+    try {
+      const blob = await downloadPatientReport(reportId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Clinical_Report_${reportId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      alert("Gagal mengunduh laporan PDF.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto pb-10">
@@ -16,63 +86,119 @@ const PatientReportPage = () => {
       </div>
 
       <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-8">
+        
+        {/* Search Bar */}
         <div className="flex-1 relative">
-          <svg className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input type="text" placeholder="Search by patient name or Case ID..." className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+          <button onClick={handleSearchClick} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </button>
+          <input 
+            type="text" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleSearchKey}
+            placeholder="Search by Case ID... (Press Enter)" 
+            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" 
+          />
         </div>
+
+        {/* Status Filter */}
         <div className="flex space-x-4">
-          <button className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-medium text-gray-700 shadow-sm flex items-center hover:bg-gray-50"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg> Status</button>
-          <button className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-medium text-gray-700 shadow-sm flex items-center hover:bg-gray-50"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> Date</button>
+          <div className="relative">
+            <select 
+              value={statusFilter}
+              onChange={handleStatusChange}
+              className="appearance-none px-6 py-3 pl-10 bg-white border border-gray-200 rounded-xl font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-10"
+            >
+              <option value="">Semua Status</option>
+              <option value="verified">Verified</option>
+              <option value="reviewing">Reviewing</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            <svg className="w-4 h-4 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <svg className="w-4 h-4 absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
+
       </div>
 
       <div className="space-y-4 mb-12">
-        {reports.map((report, idx) => (
-          <div key={idx} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between hover:shadow-md transition">
-            <div className="flex items-center w-full md:w-1/3 mb-4 md:mb-0">
-               <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 ${report.isUrgent ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-               </div>
-               <div>
-                 <div className="flex items-center space-x-2 mb-1">
-                   <h3 className="font-bold text-gray-900 text-lg">Sarah Johnson</h3>
-                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                     report.status === 'VERIFIED' ? 'bg-green-100 text-green-700' : 
-                     report.status === 'URGENT' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                   }`}>{report.status}</span>
-                 </div>
-                 <p className="text-xs text-gray-500 font-medium flex items-center">
-                   <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg> ID: {report.id} 
-                   <span className="mx-2">•</span> 
-                   <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {report.date}
-                 </p>
-               </div>
-            </div>
+        {isLoading ? (
+          <div className="text-center py-8 text-gray-500">Memuat Laporan...</div>
+        ) : reports.length > 0 ? (
+          reports.map((report) => {
+            const isUrgent = report.status?.toLowerCase() === 'urgent';
+            const isVerified = report.status?.toLowerCase() === 'verified' || report.status?.toLowerCase() === 'approved';
             
-            <div className="w-full md:w-1/3 px-0 md:px-4 mb-4 md:mb-0">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Clinical Finding</p>
-              <p className="text-sm text-gray-600 line-clamp-2">{report.finding}</p>
-            </div>
+            return (
+              <div key={report.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between hover:shadow-md transition">
+                <div className="flex items-center w-full md:w-1/3 mb-4 md:mb-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 ${isUrgent ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h3 className="font-bold text-gray-900 text-lg">Report</h3>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                        isVerified ? 'bg-green-100 text-green-700' : 
+                        isUrgent ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                      }`}>{report.status}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium flex items-center">
+                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg> ID: {report.id?.substring(0,8).toUpperCase()} 
+                      <span className="mx-2">•</span> 
+                      {new Date(report.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="w-full md:w-1/3 px-0 md:px-4 mb-4 md:mb-0">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Clinical Finding</p>
+                  <p className="text-sm text-gray-600 line-clamp-2">{report.finding || 'Detail report tersedia di dalam berkas.'}</p>
+                </div>
 
-            <div className="w-full md:w-auto flex items-center justify-end space-x-3">
-              {report.status === 'REVIEWING' ? (
-                <button className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition flex items-center">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  Preview
-                </button>
-              ) : (
-                <button className="px-6 py-2.5 bg-[#0A58CA] text-white rounded-lg font-medium hover:bg-blue-700 transition flex items-center">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Download PDF
-                </button>
-              )}
-              <button className="p-2 text-gray-400 hover:text-gray-600"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg></button>
-            </div>
-          </div>
-        ))}
+                <div className="w-full md:w-auto flex items-center justify-end space-x-3">
+                  <LoadingButton 
+                    onClick={() => handleDownload(report.id)}
+                    isLoading={downloadingId === report.id}
+                    className="px-6 py-2.5 bg-[#0A58CA] text-white rounded-lg font-medium hover:bg-blue-700 transition flex items-center shadow-sm"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Download PDF
+                  </LoadingButton>
+                </div>
+              </div>
+            )
+          })
+        ) : (
+          <div className="text-center py-8 bg-white border rounded-xl text-gray-500 shadow-sm">Tidak ada laporan yang cocok dengan pencarian/filter.</div>
+        )}
       </div>
+
+      {!isLoading && reports.length > 0 && totalPages > 1 && (
+        <div className="flex justify-center space-x-2 mt-4 mb-10">
+          <button 
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50"
+          >
+            Prev
+          </button>
+          <span className="px-4 py-2 text-gray-600 font-medium">Page {currentPage} of {totalPages}</span>
+          <button 
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
       
-      {/* Footer / Compliancy Note */}
       <div className="border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
          <div className="flex items-center mb-4 md:mb-0">
            <svg className="w-6 h-6 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -80,11 +206,6 @@ const PatientReportPage = () => {
              <p className="font-bold text-gray-700">HIPAA COMPLIANT SYSTEM</p>
              <p className="text-xs">End-to-end encrypted medical data storage and clinical reporting.</p>
            </div>
-         </div>
-         <div className="flex space-x-6 underline">
-           <a href="#" className="hover:text-gray-900">Privacy Policy</a>
-           <a href="#" className="hover:text-gray-900">Terms of Service</a>
-           <a href="#" className="hover:text-gray-900">Audit Logs</a>
          </div>
       </div>
     </div>

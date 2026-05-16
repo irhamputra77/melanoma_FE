@@ -6,7 +6,10 @@ const RecentScanCard = ({ id, scanId, date, title, status, isVerified, image }) 
 
   // Handler navigasi
   const handleNavigate = () => {
-    navigate(`/patient/history-detail`);
+    // PERBAIKAN: Menyertakan id ke dalam path URL
+    if (id) {
+      navigate(`/patient/history-detail/${id}`);
+    }
   };
 
   const handleKeyDown = (e) => {
