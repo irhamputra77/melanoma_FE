@@ -1,0 +1,84 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import RegisterPage from './RegisterPage';
+import { register } from '../services/authService';
+
+const navigateMock = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
+
+vi.mock('../services/authService', () => ({
+  register: vi.fn(),
+}));
+
+describe('RegisterPage', () => {
+  beforeEach(() => {
+    navigateMock.mockClear();
+    register.mockReset();
+  });
+
+  it('submits patient registration and returns to login', async () => {
+    const user = userEvent.setup();
+    register.mockResolvedValue({});
+
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Sarah Johnson');
+    await user.type(screen.getByPlaceholderText('Email Address'), 'sarah@example.com');
+    await user.type(screen.getByPlaceholderText('Phone Number'), '08123456789');
+    await user.type(screen.getByPlaceholderText('Birth Date'), '1996-04-23');
+    await user.selectOptions(screen.getByRole('combobox'), 'female');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.type(screen.getByPlaceholderText('Re-enter Password'), 'secret123');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    await waitFor(() => {
+      expect(register).toHaveBeenCalledWith({
+        role: 'patient',
+        name: 'Sarah Johnson',
+        email: 'sarah@example.com',
+        gender: 'female',
+        password: 'secret123',
+        phone: '08123456789',
+        birthDate: '1996-04-23',
+      });
+    });
+    expect(navigateMock).toHaveBeenCalledWith('/auth/login');
+  });
+
+  it('moves doctor registration into the profile completion step', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Doctor Clinical management/i }));
+    await user.type(screen.getByPlaceholderText('Name'), 'Dr Elena Aris');
+    await user.type(screen.getByPlaceholderText('Email Address'), 'elena@example.com');
+    await user.selectOptions(screen.getByRole('combobox'), 'female');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.type(screen.getByPlaceholderText('Re-enter Password'), 'secret123');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    expect(await screen.findByText('Complete your profile')).toBeInTheDocument();
+    expect(register).not.toHaveBeenCalled();
+  });
+});

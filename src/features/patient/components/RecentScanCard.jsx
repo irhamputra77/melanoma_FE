@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const RecentScanCard = ({ id, scanId, date, title, status, isVerified, image }) => {
+const RecentScanCard = ({ scanId, date, title, status, isVerified, image }) => {
   const navigate = useNavigate();
 
   // Handler navigasi

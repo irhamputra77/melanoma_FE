@@ -46,7 +46,11 @@ export default function HistoricalCasePage() {
                     setEvolutionData(null);
                     setEvolutionLoading(false);
                 } else {
-                    setEvolutionLoading(Boolean(nextCases[0]?.patient?.id));
+                    const hasPatientId = Boolean(nextCases[0]?.patient?.id);
+                    setEvolutionLoading(hasPatientId);
+                    if (!hasPatientId) {
+                        setEvolutionData(null);
+                    }
                 }
             })
             .catch((error) => {
@@ -69,8 +73,6 @@ export default function HistoricalCasePage() {
         const patientId = selectedCase?.patient?.id;
 
         if (!patientId) {
-            setEvolutionData(null);
-            setEvolutionLoading(false);
             return;
         }
 
@@ -110,7 +112,11 @@ export default function HistoricalCasePage() {
 
     const handleSelectCase = (caseItem) => {
         setSelectedCase(caseItem);
-        setEvolutionLoading(Boolean(caseItem?.patient?.id));
+        const hasPatientId = Boolean(caseItem?.patient?.id);
+        setEvolutionLoading(hasPatientId);
+        if (!hasPatientId) {
+            setEvolutionData(null);
+        }
     };
 
     return (

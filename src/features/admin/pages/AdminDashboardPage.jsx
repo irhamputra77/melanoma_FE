@@ -37,17 +37,14 @@ export default function AdminDashboardPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState("");
 
-    const fetchDashboard = async () => {
-        setError("");
-        setRefreshing(true);
+    const fetchDashboardData = () => Promise.allSettled([
+        getAdminDashboardSummary(),
+        getAdminUserGrowth("30d"),
+        getAdminRoleDistribution(),
+        getAdminSystemLogs({ type: "system", severity: "info", page: 1, limit: 3 }),
+    ]);
 
-        const [summaryResult, growthResult, rolesResult, logsResult] = await Promise.allSettled([
-            getAdminDashboardSummary(),
-            getAdminUserGrowth("30d"),
-            getAdminRoleDistribution(),
-            getAdminSystemLogs({ type: "system", severity: "info", page: 1, limit: 3 }),
-        ]);
-
+    const applyDashboardResults = ([summaryResult, growthResult, rolesResult, logsResult]) => {
         if (summaryResult.status === "fulfilled") {
             setSummary(normalizeSummary(summaryResult.value));
         }
@@ -74,8 +71,26 @@ export default function AdminDashboardPage() {
     };
 
     useEffect(() => {
-        fetchDashboard();
+        let isMounted = true;
+
+        fetchDashboardData().then((results) => {
+            if (isMounted) {
+                applyDashboardResults(results);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
+
+    const refreshDashboard = async () => {
+        setError("");
+        setRefreshing(true);
+
+        const results = await fetchDashboardData();
+        applyDashboardResults(results);
+    };
 
     const roleDistribution = roles.length > 0 ? roles : [
         { role: "Patients", percentage: 0, color: "bg-blue-600" },
@@ -104,7 +119,7 @@ export default function AdminDashboardPage() {
                     </button>
                     <button
                         type="button"
-                        onClick={fetchDashboard}
+                        onClick={refreshDashboard}
                         disabled={refreshing}
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm disabled:bg-blue-300"
                     >

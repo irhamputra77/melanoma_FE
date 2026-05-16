@@ -5,7 +5,7 @@ import RecentScanCard from '../components/RecentScanCard';
 const PatientDashboardPage = () => {
   // State: 'upload' | 'preview' | 'result'
   const [viewState, setViewState] = useState('upload');
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [, setSelectedFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
