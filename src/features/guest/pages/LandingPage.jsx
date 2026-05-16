@@ -12,7 +12,6 @@ const LandingPage = () => {
 
   const handleGetStarted = () => {
     setIsGetStartedLoading(true);
-    // Simulasi loading sejenak sebelum pindah halaman (NFR-USE-03)
     setTimeout(() => {
       setIsGetStartedLoading(false);
       navigate('/detection'); // Arahkan ke Detection Page
