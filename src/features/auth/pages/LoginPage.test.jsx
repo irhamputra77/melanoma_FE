@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import LoginPage from './LoginPage';
-import { login } from '../services/authService';
+import { getGoogleLoginUrl, login } from '../services/authService';
+import { getDoctorProfile } from '../../doctor/services/doctorService';
 
 const navigateMock = vi.fn();
 
@@ -17,13 +18,21 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('../services/authService', () => ({
+  getGoogleLoginUrl: vi.fn(),
   login: vi.fn(),
+}));
+
+vi.mock('../../doctor/services/doctorService', () => ({
+  getDoctorProfile: vi.fn(),
 }));
 
 describe('LoginPage', () => {
   beforeEach(() => {
     navigateMock.mockClear();
     login.mockReset();
+    getGoogleLoginUrl.mockReset();
+    getGoogleLoginUrl.mockReturnValue('http://localhost:3300/api/auth/google');
+    getDoctorProfile.mockReset();
   });
 
   it('stores auth data and redirects based on the returned role', async () => {
@@ -33,6 +42,9 @@ describe('LoginPage', () => {
         accessToken: 'token-123',
         user: { role: 'doctor' },
       },
+    });
+    getDoctorProfile.mockResolvedValue({
+      practitionerStatus: { status: 'verified' },
     });
 
     render(
@@ -51,9 +63,35 @@ describe('LoginPage', () => {
         password: 'secret123',
       });
     });
-    expect(localStorage.getItem('token')).toBe('token-123');
-    expect(localStorage.getItem('role')).toBe('doctor');
+    expect(sessionStorage.getItem('token')).toBe('token-123');
+    expect(sessionStorage.getItem('role')).toBe('doctor');
     expect(navigateMock).toHaveBeenCalledWith('/doctor/dashboard');
+  });
+
+  it('keeps an unverified doctor on the login page', async () => {
+    const user = userEvent.setup();
+    login.mockResolvedValue({
+      token: 'token-123',
+      role: 'doctor',
+    });
+    getDoctorProfile.mockResolvedValue({
+      practitionerStatus: { status: 'pending' },
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Email Address'), 'pending-doctor@example.com');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(await screen.findByText('Akun dokter Anda masih menunggu verifikasi admin.')).toBeInTheDocument();
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('role')).toBeNull();
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('shows an API error when login fails', async () => {

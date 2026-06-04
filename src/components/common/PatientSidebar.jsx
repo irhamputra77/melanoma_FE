@@ -14,9 +14,9 @@ const PatientSidebar = () => {
   ];
 
   const handleLogout = () => {
-    // FIX PENTING: Bersihkan memori otentikasi
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
+    // Bersihkan data otentikasi untuk sesi browser saat ini.
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
     
     // Redirect ke login
     navigate('/auth/login', { replace: true });

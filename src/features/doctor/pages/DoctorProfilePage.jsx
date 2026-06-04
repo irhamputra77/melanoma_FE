@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pencil, ShieldCheck, UserRound } from "lucide-react";
 import profileDoctor from "../../../assets/login_doctor_profile.png";
 import { toAssetUrl } from "../../../utils/assets";
+import { getEmailValidationError, normalizeEmail } from "../../../utils/emailValidation";
 import {
     getDoctorProfile,
     getDoctorSettings,
@@ -21,6 +22,7 @@ const emptyProfile = {
     joinedAt: "",
     status: "",
     profilePhotoUrl: "",
+    clinicName: "",
 };
 
 export default function DoctorProfilePage() {
@@ -171,6 +173,14 @@ export default function DoctorProfilePage() {
     const saveProfile = async () => {
         if (!isEditing) return;
 
+        const emailError = getEmailValidationError(profile.email);
+        if (emailError) {
+            setError(emailError);
+            setSuccess("");
+            return;
+        }
+
+        const normalizedEmail = normalizeEmail(profile.email);
         setSaving(true);
         setError("");
         setSuccess("");
@@ -185,8 +195,8 @@ export default function DoctorProfilePage() {
                 }),
             ];
 
-            if (profile.email !== initialProfile.email) {
-                tasks.push(updateDoctorAccountSettings({ email: profile.email }));
+            if (normalizedEmail !== normalizeEmail(initialProfile.email)) {
+                tasks.push(updateDoctorAccountSettings({ email: normalizedEmail }));
             }
 
             if (photoFile) {
@@ -205,9 +215,11 @@ export default function DoctorProfilePage() {
                 nextProfile = normalizeDoctorProfile(
                     freshProfileResult.value,
                     freshSettingsResult.status === "fulfilled" ? freshSettingsResult.value : {
-                        account: { email: profile.email },
+                        account: { email: normalizedEmail },
                     }
                 );
+            } else {
+                nextProfile.email = normalizedEmail;
             }
 
             setProfile(nextProfile);
@@ -298,7 +310,7 @@ export default function DoctorProfilePage() {
                     </div>
 
                     <div className="mt-7 space-y-4">
-                        <InfoStrip label="Clinic ID" value={formatClinicId(profile.id)} />
+                        <InfoStrip label="Clinic" value={profile.clinicName || "-"} />
                         <InfoStrip label="Joined" value={formatShortDate(profile.joinedAt)} />
                     </div>
                 </section>
@@ -325,6 +337,7 @@ export default function DoctorProfilePage() {
                             value={profile.email}
                             loading={loading}
                             readOnly={!isEditing}
+                            maxLength={254}
                             onChange={(value) => updateField("email", value)}
                         />
                         <ProfileSelect
@@ -360,18 +373,6 @@ export default function DoctorProfilePage() {
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                             <ShieldCheck size={21} />
                         </span>
-                        <div>
-                            <p className="text-xs font-extrabold uppercase text-blue-600">
-                                Practitioner Status
-                            </p>
-                            <h3 className="mt-1 text-base font-extrabold text-slate-950">
-                                {getPractitionerStatus(profile.status)}
-                            </h3>
-                            <p className="mt-6 max-w-sm text-xs leading-relaxed text-slate-600">
-                                Your medical license and clinical specialization have been
-                                verified for Melanoma AI analysis.
-                            </p>
-                        </div>
                     </div>
                 </section>
             </div>
@@ -411,7 +412,7 @@ function InfoStrip({ label, value }) {
     );
 }
 
-function ProfileField({ label, value, onChange, type = "text", readOnly = false, loading = false }) {
+function ProfileField({ label, value, onChange, type = "text", readOnly = false, loading = false, maxLength }) {
     return (
         <label className="block">
             <span className="mb-2 block text-[11px] font-extrabold uppercase text-blue-600">
@@ -419,6 +420,7 @@ function ProfileField({ label, value, onChange, type = "text", readOnly = false,
             </span>
             <input
                 type={type}
+                maxLength={maxLength}
                 value={loading && type !== "date" ? "Loading..." : value || ""}
                 readOnly={readOnly || loading}
                 onChange={(event) => onChange?.(event.target.value)}
@@ -462,6 +464,17 @@ function normalizeDoctorProfile(profileData, settingsData) {
         birthDate: toDateInputValue(user.birthDate || user.birth_date || ""),
         joinedAt: user.createdAt || user.joinedAt || user.joined || "",
         status: user.status || user.verificationStatus || user.practitionerStatus || "",
+        clinicName:
+            user.clinicName ||
+            user.clinic?.name ||
+            user.clinic?.clinicName ||
+            user.doctorProfile?.clinicName ||
+            user.doctorProfile?.clinic?.name ||
+            user.profile?.clinicName ||
+            user.profile?.clinic?.name ||
+            profileData?.clinicName ||
+            profileData?.clinic?.name ||
+            "",
         profilePhotoUrl:
             user.profilePhotoUrl ||
             user.profilePhoto ||
@@ -503,12 +516,6 @@ function formatShortDate(value) {
         month: "short",
         year: "numeric",
     });
-}
-
-function formatClinicId(value) {
-    if (!value) return "#MS-9942";
-    const raw = String(value).replace(/[^a-zA-Z0-9]/g, "").slice(-4).toUpperCase();
-    return raw ? `#MS-${raw}` : "#MS-9942";
 }
 
 function getPractitionerStatus(status) {

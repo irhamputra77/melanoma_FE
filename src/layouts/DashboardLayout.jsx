@@ -6,6 +6,7 @@ import {
     FileText,
     LayoutGrid,
     LogOut,
+    MessageSquare,
     Microscope,
     Settings,
     ShieldCheck,
@@ -20,6 +21,12 @@ import {
     markAllRoleNotificationsAsRead,
     markRoleNotificationAsRead,
 } from "../services/notificationService";
+import { getAdminSettings } from "../features/admin/services/adminService";
+import { useLanguage } from "../contexts/LanguageContext";
+import {
+    saveAdminOperationsSettings,
+    saveAdminPreferences,
+} from "../utils/adminSettings";
 
 const menuIcons = {
     Overview: LayoutGrid,
@@ -29,11 +36,18 @@ const menuIcons = {
     "System Settings": Settings,
     "User Management": UsersRound,
     "Users Management": UsersRound,
+    "Admin Users": ShieldCheck,
+    "Patient Users": UsersRound,
+    "Doctor Management": UsersRound,
+    "Doctor Approval": BadgeCheck,
+    "Clinic Management": Microscope,
     "Doctor Details": UsersRound,
+    Messages: MessageSquare,
 };
 
 export default function DashboardLayout() {
     const { role } = useParams();
+    const { changeLanguage = () => {} } = useLanguage() || {};
     const location = useLocation();
     const navigate = useNavigate();
     const notificationRef = useRef(null);
@@ -88,6 +102,30 @@ export default function DashboardLayout() {
     useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        let isMounted = true;
+
+        getAdminSettings()
+            .then((settings) => {
+                if (!isMounted) return;
+
+                if (settings?.operations) {
+                    saveAdminOperationsSettings(settings.operations);
+                }
+                if (settings?.preferences) {
+                    saveAdminPreferences(settings.preferences);
+                    changeLanguage(settings.preferences.language);
+                }
+            })
+            .catch(() => {});
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isAdmin]);
 
     useEffect(() => {
         const handlePointerDown = (event) => {

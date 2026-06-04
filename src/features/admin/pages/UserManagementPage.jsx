@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import profileDoctor from "../../../assets/login_doctor_profile.png";
 import { toAssetUrl } from "../../../utils/assets";
+import { getEmailValidationError, normalizeEmail } from "../../../utils/emailValidation";
+import { DEFAULT_ADMIN_PAGE_SIZE, formatAdminDate } from "../../../utils/adminSettings";
 import {
     createAdminUser,
     deleteAdminUser,
@@ -44,7 +46,7 @@ export default function UserManagementPage() {
     const [deleteUser, setDeleteUser] = useState(null);
     const [users, setUsers] = useState([]);
     const [page, setPage] = useState(1);
-    const [meta, setMeta] = useState({ page: 1, limit: 8, total: 0 });
+    const [meta, setMeta] = useState({ page: 1, limit: DEFAULT_ADMIN_PAGE_SIZE, total: 0 });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -63,13 +65,13 @@ export default function UserManagementPage() {
 
                 const { data, meta: responseMeta } = parseUsersResponse(response);
                 setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
-                setMeta(responseMeta || { page, limit: 8, total: data.length });
+                setMeta(responseMeta || { page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: data.length });
             })
             .catch((error) => {
                 if (isMounted) {
                     setError(error.response?.data?.message || "Failed to fetch users.");
                     setUsers([]);
-                    setMeta({ page, limit: 8, total: 0 });
+                    setMeta({ page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: 0 });
                 }
             })
             .finally(() => {
@@ -140,7 +142,7 @@ export default function UserManagementPage() {
             ]);
             const { data, meta: responseMeta } = parseUsersResponse(response);
             setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
-            setMeta(responseMeta || { page: nextPage, limit: 8, total: data.length });
+            setMeta(responseMeta || { page: nextPage, limit: DEFAULT_ADMIN_PAGE_SIZE, total: data.length });
             setSuccess(isAdd ? "User berhasil ditambahkan." : "User berhasil diperbarui.");
         } catch (error) {
             setModalError(getApiErrorMessage(error) || "Failed to save user.");
@@ -170,7 +172,7 @@ export default function UserManagementPage() {
             ]);
             const { data, meta: responseMeta } = parseUsersResponse(response);
             setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
-            setMeta(responseMeta || { page: nextPage, limit: 8, total: data.length });
+            setMeta(responseMeta || { page: nextPage, limit: DEFAULT_ADMIN_PAGE_SIZE, total: data.length });
             setDeleteUser(null);
             setSuccess("User deleted successfully.");
         } catch (error) {
@@ -202,7 +204,7 @@ export default function UserManagementPage() {
             ]);
             const { data, meta: responseMeta } = parseUsersResponse(response);
             setUsers(data.map((user) => normalizeUser(user, doctorProfiles)));
-            setMeta(responseMeta || { page, limit: 8, total: data.length });
+            setMeta(responseMeta || { page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: data.length });
             setVerificationUser(null);
             setSuccess(action === "approve" ? "Doctor berhasil disetujui." : "Doctor berhasil ditolak.");
         } catch (error) {
@@ -340,7 +342,7 @@ export default function UserManagementPage() {
                 <p>
                     Showing <span className="font-extrabold text-slate-900">{filteredUsers.length}</span> of {meta.total} users
                 </p>
-                <Pagination page={meta.page || page} total={meta.total} limit={meta.limit || 8} onPageChange={setPage} />
+                <Pagination page={meta.page || page} total={meta.total} limit={meta.limit || DEFAULT_ADMIN_PAGE_SIZE} onPageChange={setPage} />
             </div>
 
             {modalMode && selectedUser && (
@@ -413,10 +415,11 @@ function RolePill({ role }) {
 
 function StatusBadge({ status }) {
     const isActive = status === "Active";
+    const isVerfied = status === "Verified";
 
     return (
-        <span className={`inline-flex items-center gap-2 text-sm font-extrabold ${isActive ? "text-emerald-700" : "text-red-600"}`}>
-            <span className={`h-2 w-2 rounded-full ${isActive ? "bg-emerald-600" : "bg-red-600"}`} />
+        <span className={`inline-flex items-center gap-2 text-sm font-extrabold ${isActive ? "text-emerald-700" : isVerfied ? "text-blue-600" : "text-red-600"}`}>
+            <span className={`h-2 w-2 rounded-full ${isActive ? "bg-emerald-600" : isVerfied ? "bg-blue-600" : "bg-red-600"}`} />
             {status}
         </span>
     );
@@ -450,6 +453,7 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false, err
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-[6px]">
             <form
+                noValidate
                 onSubmit={onSubmit}
                 className="w-full max-w-[520px] rounded-[32px] bg-white p-8 shadow-2xl shadow-slate-900/20"
             >
@@ -500,6 +504,8 @@ function UserModal({ mode, user, setUser, onClose, onSubmit, saving = false, err
                         label="Email Address"
                         value={user.email}
                         placeholder="h.troy@clinical-atelier.com"
+                        type="email"
+                        maxLength={254}
                         onChange={(value) => updateField("email", value)}
                     />
                     <ModalField
@@ -724,7 +730,6 @@ function fetchUsers(activeFilter, page) {
     return getAdminUsers({
         role: activeFilter === "All Roles" ? "" : activeFilter.slice(0, -1).toLowerCase(),
         page,
-        limit: 8,
     });
 }
 
@@ -739,7 +744,7 @@ function toUserPayload(user, includePassword) {
     if (includePassword && String(user.role || "").toLowerCase() === "doctor") {
         const payload = new FormData();
         payload.append("fullName", user.name);
-        payload.append("email", user.email);
+        payload.append("email", normalizeEmail(user.email));
         payload.append("role", "doctor");
         payload.append("gender", String(user.gender || "").toLowerCase());
         payload.append("password", user.password);
@@ -755,7 +760,7 @@ function toUserPayload(user, includePassword) {
 
     const payload = {
         fullName: user.name,
-        email: user.email,
+        email: normalizeEmail(user.email),
         role: String(user.role || "").toLowerCase(),
         gender: String(user.gender || "").toLowerCase(),
     };
@@ -781,7 +786,8 @@ function toUserPayload(user, includePassword) {
 
 function validateUserForm(user, includePassword) {
     if (!user.name?.trim()) return "Full name wajib diisi.";
-    if (!user.email?.trim()) return "Email wajib diisi.";
+    const emailError = getEmailValidationError(user.email);
+    if (emailError) return emailError;
     if (!["admin", "doctor", "patient"].includes(String(user.role || "").toLowerCase())) {
         return "Role harus admin, doctor, atau patient.";
     }
@@ -851,10 +857,7 @@ function initials(name) {
 }
 
 function formatReadableDate(value) {
-    if (!value) return "-";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
+    return formatAdminDate(value, { month: "numeric", day: "numeric", year: "numeric" });
 }
 
 function toDateInputValue(value) {
@@ -864,7 +867,7 @@ function toDateInputValue(value) {
     return date.toISOString().slice(0, 10);
 }
 
-function ModalField({ label, value, placeholder, onChange, type = "text" }) {
+function ModalField({ label, value, placeholder, onChange, type = "text", maxLength }) {
     return (
         <label className="block">
             <span className="mb-2 block text-xs font-extrabold uppercase tracking-[0.18em] text-slate-600">
@@ -872,6 +875,7 @@ function ModalField({ label, value, placeholder, onChange, type = "text" }) {
             </span>
             <input
                 type={type}
+                maxLength={maxLength}
                 value={value}
                 placeholder={placeholder}
                 onChange={(event) => onChange(event.target.value)}

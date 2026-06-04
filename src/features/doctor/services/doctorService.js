@@ -1,7 +1,8 @@
 import api from "../../../services/api";
 import { ENDPOINTS } from "../../../services/endpoints";
 
-const doctorBaseURL = import.meta.env.VITE_DOCTOR_API_BASE_URL || "http://localhost:3000/api/v1/doctor";
+const apiBaseURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3300/api";
+const doctorBaseURL = import.meta.env.VITE_DOCTOR_API_BASE_URL || `${apiBaseURL.replace(/\/$/, "")}/v1/doctor`;
 const unwrap = (response) => response.data?.data ?? response.data;
 const doctorRequest = (config) => api.request({ baseURL: doctorBaseURL, ...config });
 
@@ -57,6 +58,39 @@ export const getCaseHistory = async (params) => {
     return normalizeCaseHistoryResponse(response.data, queryParams);
 };
 
+export const downloadCaseHistoryPdf = async (params = {}) => {
+    const queryParams = normalizeCaseHistoryParams({
+        ...params,
+        page: undefined,
+        limit: undefined,
+    });
+    delete queryParams.page;
+    delete queryParams.limit;
+
+    const response = await doctorRequest({
+        method: "get",
+        url: ENDPOINTS.DOCTOR.CASE_HISTORY_DOWNLOAD,
+        params: queryParams,
+        responseType: "blob",
+    });
+
+    downloadBlobResponse(response, "MySkin_Doctor_Case_History.pdf");
+    return response;
+};
+
+export const generateCaseReportPdf = async (caseId) => {
+    if (!caseId) throw new Error("caseId is required.");
+
+    const response = await doctorRequest({
+        method: "post",
+        url: ENDPOINTS.DOCTOR.CASE_REPORT_GENERATE(caseId),
+        responseType: "blob",
+    });
+
+    downloadBlobResponse(response, `MySkin_Doctor_Case_Report_${caseId}.pdf`);
+    return response;
+};
+
 function normalizeCaseHistoryParams(params = {}) {
     const queryParams = {};
     const page = Number(params.page || 1);
@@ -92,6 +126,27 @@ function normalizeCaseHistoryResponse(payload, queryParams) {
             total: Number(meta.total || 0),
         },
     };
+}
+
+function downloadBlobResponse(response, fallbackFileName) {
+    const blob = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], { type: response.headers?.["content-type"] || "application/pdf" });
+    const fileName = getFileNameFromDisposition(response.headers?.["content-disposition"]) || fallbackFileName;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+function getFileNameFromDisposition(disposition = "") {
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+    return match ? decodeURIComponent(match[1]) : "";
 }
 
 export const getPatientEvolution = async (patientId) => {
@@ -144,28 +199,10 @@ export const updateDoctorAccountSettings = async (payload) => {
     return unwrap(response);
 };
 
-export const updateDoctorTwoFactor = async (enabled) => {
-    const response = await doctorRequest({
-        method: "patch",
-        url: ENDPOINTS.DOCTOR.SETTINGS_2FA,
-        data: { enabled },
-    });
-    return unwrap(response);
-};
-
 export const updateDoctorNotificationSettings = async (payload) => {
     const response = await doctorRequest({
         method: "patch",
         url: ENDPOINTS.DOCTOR.SETTINGS_NOTIFICATIONS,
-        data: payload,
-    });
-    return unwrap(response);
-};
-
-export const updateDoctorPrivacySettings = async (payload) => {
-    const response = await doctorRequest({
-        method: "patch",
-        url: ENDPOINTS.DOCTOR.SETTINGS_PRIVACY,
         data: payload,
     });
     return unwrap(response);

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CircleCheck, Upload } from "lucide-react";
 import profileDoctor from "../../../assets/login_doctor_profile.png";
-import { register } from "../services/authService";
+import { getEmailValidationError, normalizeEmail } from "../../../utils/emailValidation";
+import { getActiveClinics, register } from "../services/authService";
 
 const initialForm = {
     role: "patient",
@@ -21,6 +22,7 @@ const initialDoctorProfile = {
     licenseNumber: "",
     medicalLicense: null,
     profilePhoto: null,
+    clinicId: "",
 };
 
 export default function RegisterPage() {
@@ -28,9 +30,30 @@ export default function RegisterPage() {
     const [step, setStep] = useState("main");
     const [form, setForm] = useState(initialForm);
     const [doctorProfile, setDoctorProfile] = useState(initialDoctorProfile);
+    const [clinics, setClinics] = useState([]);
+    const [clinicLoading, setClinicLoading] = useState(false);
+    const [clinicFetchError, setClinicFetchError] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const isDoctorProfileStep = form.role === "doctor" && step === "doctorProfile";
+
+    useEffect(() => {
+        const fetchClinics = async () => {
+            setClinicFetchError("");
+            setClinicLoading(true);
+
+            try {
+                const list = await getActiveClinics();
+                setClinics(list);
+            } catch (error) {
+                setClinicFetchError("Gagal memuat daftar clinic. Silakan muat ulang halaman.");
+            } finally {
+                setClinicLoading(false);
+            }
+        };
+
+        fetchClinics();
+    }, []);
 
     const handleChange = (event) => {
         const { name, value, type, checked } = event.target;
@@ -93,13 +116,8 @@ export default function RegisterPage() {
         event.preventDefault();
         setError("");
 
-        if (!doctorProfile.specialization.trim()) {
-            setError("Specialization wajib diisi.");
-            return;
-        }
-
-        if (!doctorProfile.licenseNumber.trim()) {
-            setError("Nomor lisensi dokter wajib diisi.");
+        if (!doctorProfile.clinicId) {
+            setError("Clinic wajib dipilih untuk registrasi dokter.");
             return;
         }
 
@@ -168,6 +186,35 @@ export default function RegisterPage() {
                             {error}
                         </p>
                     )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-900 mb-2">
+                            Clinic
+                        </label>
+                        <select
+                            name="clinicId"
+                            value={doctorProfile.clinicId}
+                            onChange={handleDoctorProfileChange}
+                            className="w-full h-10 rounded-lg border border-slate-300 bg-slate-100 px-3 outline-none focus:border-blue-500 focus:bg-white"
+                        >
+                            <option value="">Select a clinic</option>
+                            {Array.isArray(clinics) && clinics.map((clinic) => (
+                                <option key={clinic.clinicId} value={clinic.clinicId}>
+                                    {clinic.name}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-2 text-xs text-slate-500">
+                            Klinik Anda tidak terdaftar?{' '}
+                            <Link to="/auth/register-clinic" className="font-bold text-blue-600">Daftarkan klinik Anda di sini</Link>
+                        </p>
+                        {clinicLoading && (
+                            <p className="mt-2 text-xs text-slate-500">Loading clinics...</p>
+                        )}
+                        {clinicFetchError && (
+                            <p className="mt-2 text-xs text-red-600">{clinicFetchError}</p>
+                        )}
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-900 mb-2">
@@ -293,7 +340,7 @@ export default function RegisterPage() {
                 </div>
             </div>
 
-            <form onSubmit={handleMainSubmit} className="space-y-4">
+            <form noValidate onSubmit={handleMainSubmit} className="space-y-4">
                 {error && (
                     <p className="text-sm font-medium text-red-600">
                         {error}
@@ -311,6 +358,7 @@ export default function RegisterPage() {
                     name="email"
                     placeholder="Email Address"
                     type="email"
+                    maxLength={254}
                     value={form.email}
                     onChange={handleChange}
                     className="w-full border-b border-slate-300 py-3 outline-none text-sm"
@@ -420,6 +468,13 @@ function validateMainForm(form) {
         return "Semua field utama wajib diisi.";
     }
 
+    const emailError = getEmailValidationError(form.email);
+    if (emailError) return emailError;
+
+    if (form.password.length < 6) {
+        return "Password minimal 6 karakter.";
+    }
+
     if (form.password !== form.confirmPassword) {
         return "Password dan konfirmasi password tidak sama.";
     }
@@ -432,15 +487,24 @@ function validateMainForm(form) {
 }
 
 function buildRegisterPayload(form, doctorProfile) {
+    const email = normalizeEmail(form.email);
+
     if (form.role === "doctor") {
         const payload = new FormData();
         payload.append("role", "doctor");
         payload.append("fullName", form.name);
-        payload.append("email", form.email);
+        payload.append("email", email);
         payload.append("gender", form.gender);
         payload.append("password", form.password);
-        payload.append("specialization", doctorProfile.specialization);
-        payload.append("licenseNumber", doctorProfile.licenseNumber);
+        payload.append("clinicId", doctorProfile.clinicId);
+
+        if (doctorProfile.specialization.trim()) {
+            payload.append("specialization", doctorProfile.specialization);
+        }
+
+        if (doctorProfile.licenseNumber.trim()) {
+            payload.append("licenseNumber", doctorProfile.licenseNumber);
+        }
 
         if (form.phone.trim()) payload.append("phoneNumber", form.phone);
         if (form.birthDate) payload.append("birthDate", form.birthDate);
@@ -452,7 +516,7 @@ function buildRegisterPayload(form, doctorProfile) {
     const payload = {
         role: "patient",
         name: form.name,
-        email: form.email,
+        email,
         gender: form.gender,
         password: form.password,
     };
@@ -489,6 +553,14 @@ function getRegisterErrorMessage(error) {
         payload?.data?.error;
 
     if (message) {
+        if (message.includes("clinicId harus disediakan untuk registrasi dokter")) {
+            return "Dokter wajib memilih clinic.";
+        }
+
+        if (message.includes("Clinic tidak ditemukan atau tidak aktif")) {
+            return "Clinic yang dipilih tidak valid atau sudah tidak aktif.";
+        }
+
         return message;
     }
 

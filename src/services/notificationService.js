@@ -34,6 +34,8 @@ function normalizeNotificationsResponse(payload) {
     const data = payload?.data;
     const notifications = Array.isArray(data)
         ? data
+        : Array.isArray(data?.data)
+            ? data.data
         : Array.isArray(data?.notifications)
             ? data.notifications
             : Array.isArray(payload?.notifications)
@@ -44,5 +46,6 @@ function normalizeNotificationsResponse(payload) {
         status: payload?.status || "success",
         data: notifications,
         meta: payload?.meta || data?.meta || {},
+        unreadCount: data?.unreadCount ?? payload?.unreadCount ?? notifications.filter((notification) => !notification.isRead).length,
     };
 }

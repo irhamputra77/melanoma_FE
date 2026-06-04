@@ -26,14 +26,14 @@ export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState('English (US)');
 
   useEffect(() => {
-    // Ambil preferensi bahasa dari localStorage saat web dimuat
-    const savedLang = localStorage.getItem('appLanguage');
+    // Ambil preferensi bahasa dari sesi browser saat web dimuat.
+    const savedLang = sessionStorage.getItem('appLanguage');
     if (savedLang) setLanguage(savedLang);
   }, []);
 
   const changeLanguage = (lang) => {
     setLanguage(lang);
-    localStorage.setItem('appLanguage', lang);
+    sessionStorage.setItem('appLanguage', lang);
   };
 
   const t = (key) => {

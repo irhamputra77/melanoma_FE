@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import CaseHistoryTable from "../components/historical/CaseHistoryTable";
 import HistoricalCaseControls from "../components/historical/HistoricalCaseControls";
 import PatientDetailPanel from "../components/historical/PatientDetailPanel";
-import { getCaseHistory, getPatientEvolution } from "../services/doctorService";
+import {
+    downloadCaseHistoryPdf,
+    generateCaseReportPdf,
+    getCaseHistory,
+    getPatientEvolution,
+} from "../services/doctorService";
 
 const initialFilters = {
     search: "",
@@ -22,6 +27,8 @@ export default function HistoricalCasePage() {
     const [evolutionData, setEvolutionData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [evolutionLoading, setEvolutionLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState("");
+    const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -39,6 +46,7 @@ export default function HistoricalCasePage() {
                 };
 
                 setError("");
+                setSuccess("");
                 setCases(nextCases);
                 setMeta(nextMeta);
                 setSelectedCase(nextCases[0] || null);
@@ -119,11 +127,52 @@ export default function HistoricalCasePage() {
         }
     };
 
+    const handleDownloadHistory = async () => {
+        setActionLoading("download");
+        setError("");
+
+        try {
+            await downloadCaseHistoryPdf(filters);
+            setSuccess("Case history PDF downloaded.");
+        } catch (error) {
+            setError(error.response?.data?.message || error.message || "Failed to download case history PDF.");
+        } finally {
+            setActionLoading("");
+        }
+    };
+
+    const handleGenerateReport = async () => {
+        if (!selectedCase?.caseId) {
+            setError("Select a case before generating a report.");
+            return;
+        }
+
+        setActionLoading("report");
+        setError("");
+
+        try {
+            await generateCaseReportPdf(selectedCase.caseId);
+            setSuccess(`Case report PDF generated for ${selectedCase.caseId}.`);
+        } catch (error) {
+            setError(error.response?.data?.message || error.message || "Failed to generate case report PDF.");
+        } finally {
+            setActionLoading("");
+        }
+    };
+
+    const totalPages = Math.max(1, Math.ceil(Number(meta.total || 0) / Number(meta.limit || filters.limit || 10)));
+    const currentPage = Number(meta.page || filters.page || 1);
+
     return (
         <>
             {error && (
                 <div className="mb-6 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600">
                     {error}
+                </div>
+            )}
+            {success && (
+                <div className="mb-6 rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
+                    {success}
                 </div>
             )}
 
@@ -132,6 +181,9 @@ export default function HistoricalCasePage() {
                     <HistoricalCaseControls
                         filters={filters}
                         onFilterChange={updateFilters}
+                        onDownloadHistory={handleDownloadHistory}
+                        onGenerateReport={handleGenerateReport}
+                        actionLoading={actionLoading}
                     />
                     <CaseHistoryTable
                         cases={cases}
@@ -142,6 +194,41 @@ export default function HistoricalCasePage() {
                     <p className="mt-4 text-sm text-slate-500">
                         Showing {cases.length} of {meta.total} cases
                     </p>
+                    <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-slate-600">Rows</span>
+                            <select
+                                value={filters.limit}
+                                onChange={(event) => updateFilters({ limit: Number(event.target.value), page: 1 })}
+                                className="h-10 rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 outline-none"
+                            >
+                                {[5, 10, 20, 50].map((limit) => (
+                                    <option key={limit} value={limit}>{limit}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => updateFilters({ page: Math.max(1, currentPage - 1) })}
+                                disabled={loading || currentPage <= 1}
+                                className="h-10 rounded-xl bg-slate-100 px-4 text-sm font-extrabold text-slate-600 disabled:text-slate-300"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm font-extrabold text-slate-700">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => updateFilters({ page: Math.min(totalPages, currentPage + 1) })}
+                                disabled={loading || currentPage >= totalPages}
+                                className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white disabled:bg-blue-200"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="col-span-12 2xl:col-span-3">

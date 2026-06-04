@@ -14,7 +14,7 @@ export default function NotificationRow({ icon, title, description, enabled, onT
                 </div>
             </div>
 
-            <ToggleSwitch checked={enabled} onClick={onToggle} disabled={disabled} />
+            <ToggleSwitch checked={enabled} onClick={onToggle} disabled={disabled} ariaLabel={title} />
         </div>
     );
 }

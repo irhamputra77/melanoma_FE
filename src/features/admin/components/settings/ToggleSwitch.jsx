@@ -1,10 +1,11 @@
-export default function ToggleSwitch({ checked = false, onClick, disabled = false }) {
+export default function ToggleSwitch({ checked = false, onClick, disabled = false, ariaLabel }) {
     return (
         <button
             type="button"
             onClick={onClick}
             disabled={disabled}
             aria-pressed={checked}
+            aria-label={ariaLabel}
             className={`relative h-6 w-11 rounded-full transition disabled:opacity-60 ${checked ? "bg-blue-600" : "bg-slate-300"}`}
         >
             <span

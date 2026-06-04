@@ -1,7 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 import React, { useState } from "react";
-import { login } from "../services/authService";
+import { getGoogleLoginUrl, login } from "../services/authService";
+import { isMaintenanceModeEnabled } from "../../../utils/maintenanceMode";
+import {
+    clearStoredAuth,
+    getDoctorVerificationMessage,
+    getDoctorVerificationStatus,
+    getRoleFromAuthResponse,
+    getTokenFromAuthResponse,
+} from "../utils/authFlow";
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -13,6 +21,7 @@ export default function LoginPage() {
     });
 
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState("");
 
     const handleChange = (e) => {
@@ -32,16 +41,29 @@ export default function LoginPage() {
             const token = getTokenFromAuthResponse(loginData);
 
             if (token) {
-                localStorage.setItem("token", token);
+                sessionStorage.setItem("token", token);
             }
 
             const role = getRoleFromAuthResponse(loginData);
 
             if (role) {
-                localStorage.setItem("role", role);
+                sessionStorage.setItem("role", role);
+            }
+
+            if (role !== "admin" && isMaintenanceModeEnabled()) {
+                navigate("/maintenance", { replace: true });
+                return;
             }
 
             if (role === "doctor") {
+                const verificationStatus = await getDoctorVerificationStatus(loginData);
+
+                if (verificationStatus !== "verified") {
+                    clearStoredAuth();
+                    setError(getDoctorVerificationMessage(verificationStatus));
+                    return;
+                }
+
                 navigate("/doctor/dashboard");
             } else if (role === "patient") {
                 navigate("/patient/dashboard");
@@ -64,6 +86,12 @@ export default function LoginPage() {
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     }
+
+    const handleGoogleLogin = () => {
+        setGoogleLoading(true);
+        setError("");
+        window.location.assign(getGoogleLoginUrl());
+    };
 
     return (
         <div className="w-full max-w-md mx-auto pt-10 font-inter">
@@ -112,7 +140,9 @@ export default function LoginPage() {
                         <input type="checkbox" />
                         Remember me
                     </label>
-                    <a className="text-blue-600 font-semibold">Forgot password?</a>
+                    <Link to="/auth/forgot-password" className="text-blue-600 font-semibold">
+                        Forgot password?
+                    </Link>
                 </div>
 
                 <button
@@ -128,8 +158,13 @@ export default function LoginPage() {
                 OR CONTINUE WITH
             </div>
 
-            <button className="w-full bg-slate-100 py-3 rounded-xl font-semibold text-sm">
-                Google
+            <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full rounded-xl bg-slate-100 py-3 text-sm font-semibold disabled:text-slate-400"
+            >
+                {googleLoading ? "Redirecting..." : "Google"}
             </button>
 
             <p className="text-center mt-8 text-sm">
@@ -140,26 +175,4 @@ export default function LoginPage() {
             </p>
         </div>
     );
-}
-
-function getRoleFromAuthResponse(payload) {
-    const role =
-        payload?.role ||
-        payload?.user?.role ||
-        payload?.data?.role ||
-        payload?.data?.user?.role;
-
-    return typeof role === "string" ? role.toLowerCase() : "";
-}
-
-function getTokenFromAuthResponse(payload) {
-    const token =
-        payload?.token ||
-        payload?.accessToken ||
-        payload?.access_token ||
-        payload?.data?.token ||
-        payload?.data?.accessToken ||
-        payload?.data?.access_token;
-
-    return typeof token === "string" ? token : "";
 }

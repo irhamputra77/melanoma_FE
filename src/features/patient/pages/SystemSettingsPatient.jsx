@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoadingButton from '../../../components/common/LoadingButton';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { getEmailValidationError, normalizeEmail } from '../../../utils/emailValidation';
 import { 
   getPatientSettings,
   getPatientProfile,
@@ -63,12 +64,19 @@ const SystemSettingsPatient = () => {
   const handleChange = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
 
   const handleSave = async () => {
+    const emailError = getEmailValidationError(email);
+    if (emailError) {
+      setMessage({ text: emailError, type: 'error' });
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
     setIsSaving(true);
     setMessage({ text: '', type: '' });
     
     try {
       await Promise.all([
-        updatePatientAccountSettings({ email }),
+        updatePatientAccountSettings({ email: normalizedEmail }),
         updatePatientTwoFactor(settings.twoFactorEnabled),
         updatePatientNotificationSettings({
           emailNotifications: settings.emailNotifications,
@@ -81,6 +89,7 @@ const SystemSettingsPatient = () => {
       // FIX: Memicu perubahan bahasa di UI (Context)
       changeLanguage(settings.language);
 
+      setEmail(normalizedEmail);
       setMessage({ text: 'Pengaturan berhasil disimpan!', type: 'success' });
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } catch (error) {
@@ -124,7 +133,7 @@ const SystemSettingsPatient = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-2">Email Address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+                <input type="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-2">Password</label>

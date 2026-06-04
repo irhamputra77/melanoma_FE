@@ -22,6 +22,28 @@ const unwrapList = (response) => {
 };
 const adminRequest = (config) => api.request({ baseURL: adminBaseURL, ...config });
 
+const optionalNumber = (value) => (
+    value === undefined || value === null || value === "" ? undefined : Number(value)
+);
+
+const unwrapAdminLogList = (response) => {
+    const envelope = response.data;
+    const payload = envelope?.data || {};
+    const data = Array.isArray(payload.data) ? payload.data : [];
+    const meta = payload.meta || {
+        page: 1,
+        limit: data.length,
+        total: data.length,
+        totalPages: 1,
+    };
+
+    return {
+        data,
+        meta,
+        status: envelope?.status,
+    };
+};
+
 export const getAdminDashboardSummary = async () => {
     const response = await adminRequest({ method: "get", url: "/dashboard/summary" });
     return unwrap(response);
@@ -41,18 +63,71 @@ export const getAdminRoleDistribution = async () => {
     return unwrap(response);
 };
 
+export const generateReport = async (payload) => {
+    const response = await adminRequest({
+        method: "post",
+        url: "/dashboard/report/generate",
+        data: payload,
+    });
+    return unwrap(response);
+};
+
+export const exportReport = async (params = {}) => {
+    const response = await adminRequest({
+        method: "get",
+        url: "/dashboard/report/export",
+        params: {
+            startDate: params.startDate || undefined,
+            endDate: params.endDate || undefined,
+            reportType: params.reportType || undefined,
+            format: params.format || undefined,
+        },
+    });
+    return unwrap(response);
+};
+
+export const downloadReport = (downloadUrl) => {
+    if (!downloadUrl) return;
+    window.open(downloadUrl, "_blank", "noopener,noreferrer");
+};
+
 export const getAdminSystemLogs = async (params = {}) => {
     const response = await adminRequest({
         method: "get",
         url: "/system/logs",
         params: {
-            type: params.type || "system",
-            severity: params.severity || "info",
+            type: params.type || undefined,
+            severity: params.severity || undefined,
             page: Number(params.page || 1),
-            limit: Number(params.limit || 3),
+            limit: optionalNumber(params.limit),
         },
     });
-    return response.data;
+    return unwrapAdminLogList(response);
+};
+
+export const getAdminAuditLogs = async (params = {}) => {
+    const response = await adminRequest({
+        method: "get",
+        url: "/audit-logs",
+        params: {
+            adminId: params.adminId || undefined,
+            action: params.action || undefined,
+            startDate: params.startDate || undefined,
+            endDate: params.endDate || undefined,
+            page: Number(params.page || 1),
+            limit: optionalNumber(params.limit),
+        },
+    });
+    return unwrapAdminLogList(response);
+};
+
+export const cleanupAdminSystemLogs = async (retentionDays) => {
+    const response = await adminRequest({
+        method: "post",
+        url: "/system/logs/cleanup",
+        data: retentionDays ? { retentionDays: Number(retentionDays) } : undefined,
+    });
+    return unwrap(response);
 };
 
 export const getAdminUsers = async (params = {}) => {
@@ -64,7 +139,7 @@ export const getAdminUsers = async (params = {}) => {
             role: params.role || undefined,
             status: params.status || undefined,
             page: Number(params.page || 1),
-            limit: Number(params.limit || 8),
+            limit: optionalNumber(params.limit),
             sortBy: params.sortBy || "createdAt",
             sortOrder: params.sortOrder || "desc",
         },
@@ -79,6 +154,20 @@ export const createAdminUser = async (payload) => {
 
 export const updateAdminUser = async (userId, payload) => {
     const response = await adminRequest({ method: "patch", url: `/users/${userId}`, data: payload });
+    return unwrap(response);
+};
+
+export const updateAdminUserStatus = async (userId, status) => {
+    const response = await adminRequest({ method: "patch", url: `/users/${userId}/status`, data: { status } });
+    return unwrap(response);
+};
+
+export const resetAdminUserPassword = async (userId, newPassword) => {
+    const response = await adminRequest({
+        method: "patch",
+        url: `/users/${userId}/reset-password`,
+        data: { newPassword },
+    });
     return unwrap(response);
 };
 
@@ -99,8 +188,9 @@ export const getAdminDoctors = async (params = {}) => {
         params: {
             search: params.search || undefined,
             status: params.status || undefined,
+            clinicId: params.clinicId || undefined,
             page: Number(params.page || 1),
-            limit: Number(params.limit || 8),
+            limit: optionalNumber(params.limit),
         },
     });
     return unwrapList(response);
@@ -140,8 +230,30 @@ export const getAdminSettings = async () => {
     return unwrap(response);
 };
 
+export const getAdminOperationsSettings = async () => {
+    const response = await adminRequest({ method: "get", url: "/settings/operations" });
+    return unwrap(response);
+};
+
+export const cleanupAdminAuditLogs = async () => {
+    const response = await adminRequest({ method: "post", url: "/settings/operations/audit-log-cleanup" });
+    return unwrap(response);
+};
+
 export const getAdminProfile = async () => {
     const response = await adminRequest({ method: "get", url: "/profile" });
+    return unwrap(response);
+};
+
+export const updateAdminProfilePhoto = async (photo) => {
+    const formData = new FormData();
+    formData.append("photo", photo);
+
+    const response = await adminRequest({
+        method: "patch",
+        url: "/profile/photo",
+        data: formData,
+    });
     return unwrap(response);
 };
 
@@ -162,6 +274,11 @@ export const updateAdminNotificationSettings = async (payload) => {
 
 export const updateAdminPrivacySettings = async (payload) => {
     const response = await adminRequest({ method: "patch", url: "/settings/privacy", data: payload });
+    return unwrap(response);
+};
+
+export const updateAdminOperationsSettings = async (payload) => {
+    const response = await adminRequest({ method: "patch", url: "/settings/operations", data: payload });
     return unwrap(response);
 };
 

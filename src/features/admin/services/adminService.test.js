@@ -13,7 +13,7 @@ describe('adminService.getAdminUsers', () => {
     api.request.mockReset();
   });
 
-  it('unwraps nested list responses and applies default query params', async () => {
+  it('unwraps nested list responses and omits limit so backend admin settings can apply', async () => {
     api.request.mockResolvedValue({
       data: {
         status: 'success',
@@ -35,7 +35,7 @@ describe('adminService.getAdminUsers', () => {
         role: undefined,
         status: undefined,
         page: 1,
-        limit: 8,
+        limit: undefined,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       },

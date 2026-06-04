@@ -18,6 +18,10 @@ const LandingPage = () => {
     }, 500);
   };
 
+  const handleLogin = () => {
+    navigate('/auth/login');
+  };
+
   const handleCreateAccount = () => {
     setIsCreateAccountLoading(true);
     setTimeout(() => setIsCreateAccountLoading(false), 2000);
@@ -45,13 +49,22 @@ const LandingPage = () => {
           <p className="text-lg text-gray-600 mb-8 max-w-md leading-relaxed">
             Harnessing the precision of bespoke medical AI to detect melanoma and skin concerns in seconds. Expert clinical oversight, reimagined for your home.
           </p>
-          <LoadingButton 
-            onClick={handleGetStarted}
-            isLoading={isGetStartedLoading}
-            className="py-3 px-8 text-base"
-          >
-            Get Started
-          </LoadingButton>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <LoadingButton 
+              onClick={handleGetStarted}
+              isLoading={isGetStartedLoading}
+              className="py-3 px-8 text-base"
+            >
+              Get Started
+            </LoadingButton>
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="rounded-xl border border-blue-600 px-8 py-3 text-base font-semibold text-blue-600 transition hover:bg-blue-50"
+            >
+              Login
+            </button>
+          </div>
         </div>
 
         <div className="relative">

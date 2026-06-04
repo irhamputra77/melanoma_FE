@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import RegisterPage from './RegisterPage';
-import { register } from '../services/authService';
+import { register, getActiveClinics } from '../services/authService';
 
 const navigateMock = vi.fn();
 
@@ -18,12 +18,15 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../services/authService', () => ({
   register: vi.fn(),
+  getActiveClinics: vi.fn(),
 }));
 
 describe('RegisterPage', () => {
   beforeEach(() => {
     navigateMock.mockClear();
     register.mockReset();
+    getActiveClinics.mockReset();
+    getActiveClinics.mockResolvedValue([]);
   });
 
   it('submits patient registration and returns to login', async () => {
@@ -80,5 +83,30 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Complete your profile')).toBeInTheDocument();
     expect(register).not.toHaveBeenCalled();
+  });
+
+  it('shows clinic dropdown for doctor profile step', async () => {
+    const user = userEvent.setup();
+    getActiveClinics.mockResolvedValue([
+      { clinicId: 'uuid-clinic', name: 'Melanoma Care Clinic' },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Doctor Clinical management/i }));
+    await user.type(screen.getByPlaceholderText('Name'), 'Dr Elena Aris');
+    await user.type(screen.getByPlaceholderText('Email Address'), 'elena@example.com');
+    await user.selectOptions(screen.getByRole('combobox'), 'female');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.type(screen.getByPlaceholderText('Re-enter Password'), 'secret123');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    expect(await screen.findByText('Complete your profile')).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /Melanoma Care Clinic/i })).toBeInTheDocument();
   });
 });

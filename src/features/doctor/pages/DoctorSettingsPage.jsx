@@ -1,36 +1,28 @@
 import { useEffect, useState } from "react";
 import {
     Bell,
-    ChevronDown,
     Mail,
-    Shield,
     ShieldCheck,
     Sparkles,
     UserCircle,
 } from "lucide-react";
 import NotificationRow from "../../admin/components/settings/NotificationRow";
 import SettingsSection from "../../admin/components/settings/SettingsSection";
-import ToggleSwitch from "../../admin/components/settings/ToggleSwitch";
+import { getEmailValidationError, normalizeEmail } from "../../../utils/emailValidation";
 import {
     getDoctorSettings,
     updateDoctorAccountSettings,
     updateDoctorNotificationSettings,
     updateDoctorPreferences,
-    updateDoctorPrivacySettings,
-    updateDoctorTwoFactor,
 } from "../services/doctorService";
 
 const defaultSettings = {
     account: {
         email: "",
-        twoFactorEnabled: false,
     },
     notifications: {
         emailNotifications: true,
         verificationAlerts: true,
-    },
-    privacy: {
-        dataVisibility: "restricted_clinical_team_only",
     },
     preferences: {
         language: "English (US)",
@@ -40,6 +32,12 @@ const defaultSettings = {
 export default function DoctorSettingsPage() {
     const [settings, setSettings] = useState(defaultSettings);
     const [initialSettings, setInitialSettings] = useState(defaultSettings);
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+    });
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState("");
     const [error, setError] = useState("");
@@ -84,23 +82,6 @@ export default function DoctorSettingsPage() {
         setSuccess("");
     };
 
-    const toggleTwoFactor = async () => {
-        const enabled = !settings.account.twoFactorEnabled;
-        const previous = settings.account.twoFactorEnabled;
-
-        updateSettings("account", { twoFactorEnabled: enabled });
-        setSaving("2fa");
-
-        try {
-            await updateDoctorTwoFactor(enabled);
-        } catch (error) {
-            updateSettings("account", { twoFactorEnabled: previous });
-            setError(error.response?.data?.message || "Failed to update two-factor setting.");
-        } finally {
-            setSaving("");
-        }
-    };
-
     const toggleNotification = async (key) => {
         const previousNotifications = settings.notifications;
         const nextNotifications = {
@@ -127,19 +108,87 @@ export default function DoctorSettingsPage() {
         setSuccess("");
     };
 
+    const updatePasswordForm = (field, value) => {
+        setPasswordForm((current) => ({
+            ...current,
+            [field]: value,
+        }));
+        setError("");
+        setSuccess("");
+    };
+
+    const resetPasswordForm = () => {
+        setPasswordForm({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+        });
+    };
+
+    const togglePasswordForm = () => {
+        setIsChangingPassword((current) => !current);
+        resetPasswordForm();
+        setError("");
+        setSuccess("");
+    };
+
+    const savePassword = async () => {
+        const { currentPassword, newPassword, confirmPassword } = passwordForm;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            setError("Please complete all password fields.");
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setError("New password must be at least 6 characters.");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setError("New password confirmation does not match.");
+            return;
+        }
+
+        setSaving("password");
+        setError("");
+        setSuccess("");
+
+        try {
+            await updateDoctorAccountSettings({ currentPassword, newPassword });
+            resetPasswordForm();
+            setIsChangingPassword(false);
+            setSuccess("Password updated.");
+        } catch (error) {
+            setError(error.response?.data?.message || "Failed to update password.");
+        } finally {
+            setSaving("");
+        }
+    };
+
     const savePreferences = async () => {
+        const emailError = getEmailValidationError(settings.account.email);
+        if (emailError) {
+            setError(emailError);
+            setSuccess("");
+            return;
+        }
+
+        const normalizedEmail = normalizeEmail(settings.account.email);
         setSaving("all");
         setError("");
         setSuccess("");
 
         try {
             await Promise.all([
-                updateDoctorAccountSettings({ email: settings.account.email }),
-                updateDoctorPrivacySettings(settings.privacy),
+                updateDoctorAccountSettings({ email: normalizedEmail }),
                 updateDoctorPreferences(settings.preferences),
             ]);
 
-            const nextSettings = toDoctorSettings(settings);
+            const nextSettings = toDoctorSettings({
+                ...settings,
+                account: { ...settings.account, email: normalizedEmail },
+            });
             setSettings(nextSettings);
             setInitialSettings(nextSettings);
             setSuccess("Preferences saved.");
@@ -157,7 +206,7 @@ export default function DoctorSettingsPage() {
                     Settings
                 </h1>
                 <p className="mt-2 text-xl text-slate-600">
-                    Manage your clinic preferences and security protocols.
+                    Manage your clinic account, notifications, and workspace preferences.
                 </p>
             </div>
 
@@ -177,10 +226,13 @@ export default function DoctorSettingsPage() {
                     <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
                         <div className="space-y-5">
                             <Field
+                                id="doctor-email"
                                 label="Email Address"
                                 value={loading ? "Loading..." : settings.account.email}
                                 onChange={(value) => updateSettings("account", { email: value })}
                                 readOnly={loading}
+                                type="email"
+                                maxLength={254}
                             />
 
                             <div>
@@ -191,29 +243,76 @@ export default function DoctorSettingsPage() {
                                     <span className="text-slate-900">********</span>
                                     <button
                                         type="button"
-                                        className="text-sm font-bold text-blue-600"
+                                        onClick={togglePasswordForm}
+                                        disabled={loading || saving === "password"}
+                                        className="text-sm font-bold text-blue-600 disabled:text-slate-400"
                                     >
-                                        Change
+                                        {isChangingPassword ? "Cancel" : "Change"}
                                     </button>
                                 </div>
                             </div>
+
+                            {isChangingPassword && (
+                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <div className="mb-5">
+                                        <h3 className="text-base font-extrabold text-slate-900">Change Password</h3>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Use at least 6 characters for the new password.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <Field
+                                            id="doctor-current-password"
+                                            label="Current Password"
+                                            type="password"
+                                            autoComplete="current-password"
+                                            value={passwordForm.currentPassword}
+                                            onChange={(value) => updatePasswordForm("currentPassword", value)}
+                                            inputClassName="border border-slate-200 bg-slate-50 focus:border-blue-500 focus:bg-white"
+                                        />
+                                        <Field
+                                            id="doctor-new-password"
+                                            label="New Password"
+                                            type="password"
+                                            autoComplete="new-password"
+                                            value={passwordForm.newPassword}
+                                            onChange={(value) => updatePasswordForm("newPassword", value)}
+                                            inputClassName="border border-slate-200 bg-slate-50 focus:border-blue-500 focus:bg-white"
+                                        />
+                                        <Field
+                                            id="doctor-confirm-password"
+                                            label="Confirm New Password"
+                                            type="password"
+                                            autoComplete="new-password"
+                                            value={passwordForm.confirmPassword}
+                                            onChange={(value) => updatePasswordForm("confirmPassword", value)}
+                                            inputClassName="border border-slate-200 bg-slate-50 focus:border-blue-500 focus:bg-white"
+                                        />
+                                        <div className="flex justify-end pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={savePassword}
+                                                disabled={saving === "password"}
+                                                className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
+                                            >
+                                                {saving === "password" ? "Updating..." : "Update Password"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex min-h-40 items-center justify-between gap-6 rounded-2xl bg-white px-7">
+                        <div className="flex min-h-40 flex-col justify-center rounded-2xl bg-white px-7">
                             <div>
                                 <h3 className="text-lg font-extrabold text-slate-900">
-                                    Two-Factor Authentication
+                                    Account Access
                                 </h3>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Enhanced security for clinical data access.
+                                    Keep your email and password current so clinic communication remains reliable.
                                 </p>
                             </div>
-
-                            <ToggleSwitch
-                                checked={settings.account.twoFactorEnabled}
-                                onClick={toggleTwoFactor}
-                                disabled={loading || saving === "2fa"}
-                            />
                         </div>
                     </div>
                 </SettingsSection>
@@ -240,31 +339,6 @@ export default function DoctorSettingsPage() {
                 </SettingsSection>
 
                 <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-                    <SettingsSection icon={<Shield size={22} />} title="Privacy Settings">
-                        <div className="rounded-2xl bg-white p-4">
-                            <label className="mb-2 block text-sm font-extrabold text-slate-900">
-                                Data Visibility
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={settings.privacy.dataVisibility}
-                                    onChange={(event) => updateSettings("privacy", { dataVisibility: event.target.value })}
-                                    disabled={loading}
-                                    className="flex h-11 w-full appearance-none items-center justify-between rounded-lg bg-slate-100 px-4 text-sm text-slate-900 outline-none disabled:text-slate-500"
-                                >
-                                    <option value="restricted_clinical_team_only">Restricted (Clinical Team Only)</option>
-                                    <option value="restricted_self_only">Restricted (Self Only)</option>
-                                    <option value="shared_with_clinic">Shared With Clinic</option>
-                                </select>
-                                <ChevronDown size={18} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                            </div>
-                        </div>
-
-                        <p className="mt-5 text-sm italic text-slate-500">
-                            Data is encrypted using AES-256 standards.
-                        </p>
-                    </SettingsSection>
-
                     <SettingsSection icon={<Sparkles size={22} />} title="System Preferences">
                         <div className="flex items-center justify-between gap-6">
                             <p className="text-sm font-extrabold text-slate-900">Language</p>
@@ -302,17 +376,31 @@ export default function DoctorSettingsPage() {
     );
 }
 
-function Field({ label, value, onChange, readOnly = false }) {
+function Field({
+    id,
+    label,
+    value,
+    onChange,
+    readOnly = false,
+    type = "text",
+    autoComplete,
+    inputClassName = "",
+    maxLength,
+}) {
     return (
         <div>
-            <label className="mb-2 block text-sm font-extrabold text-slate-600">
+            <label htmlFor={id} className="mb-2 block text-sm font-extrabold text-slate-600">
                 {label}
             </label>
             <input
+                id={id}
+                type={type}
+                maxLength={maxLength}
+                autoComplete={autoComplete}
                 value={value || ""}
                 onChange={(event) => onChange?.(event.target.value)}
                 readOnly={readOnly}
-                className="flex h-14 w-full items-center rounded-xl bg-white px-4 text-slate-900 outline-none read-only:text-slate-500"
+                className={`flex h-14 w-full items-center rounded-xl bg-white px-4 text-slate-900 outline-none transition read-only:text-slate-500 ${inputClassName}`}
             />
         </div>
     );
@@ -322,14 +410,10 @@ function toDoctorSettings(data) {
     return {
         account: {
             email: data?.account?.email ?? defaultSettings.account.email,
-            twoFactorEnabled: data?.account?.twoFactorEnabled ?? defaultSettings.account.twoFactorEnabled,
         },
         notifications: {
             emailNotifications: data?.notifications?.emailNotifications ?? defaultSettings.notifications.emailNotifications,
             verificationAlerts: data?.notifications?.verificationAlerts ?? defaultSettings.notifications.verificationAlerts,
-        },
-        privacy: {
-            dataVisibility: data?.privacy?.dataVisibility ?? defaultSettings.privacy.dataVisibility,
         },
         preferences: {
             language: data?.preferences?.language ?? defaultSettings.preferences.language,
