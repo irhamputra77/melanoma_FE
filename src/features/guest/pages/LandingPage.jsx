@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Tambahan Import
+import { useNavigate } from 'react-router-dom';
 import LoadingButton from '../../../components/common/LoadingButton';
 import medicalProfessional from '../../../assets/medical-professional.png';
 import healthChart from '../../../assets/health-chart.png';
 
 const LandingPage = () => {
-  const navigate = useNavigate(); // Inisialisasi navigate
+  const navigate = useNavigate(); 
   const [isGetStartedLoading, setIsGetStartedLoading] = useState(false);
   const [isCreateAccountLoading, setIsCreateAccountLoading] = useState(false);
   const [isLearnMoreLoading, setIsLearnMoreLoading] = useState(false);
@@ -14,7 +14,7 @@ const LandingPage = () => {
     setIsGetStartedLoading(true);
     setTimeout(() => {
       setIsGetStartedLoading(false);
-      navigate('/detection'); // Arahkan ke Detection Page
+      navigate('/detection'); 
     }, 500);
   };
 
@@ -22,14 +22,18 @@ const LandingPage = () => {
     navigate('/auth/login');
   };
 
+  // FIX: Mengarahkan ke halaman register
   const handleCreateAccount = () => {
     setIsCreateAccountLoading(true);
-    setTimeout(() => setIsCreateAccountLoading(false), 2000);
+    setTimeout(() => {
+      setIsCreateAccountLoading(false);
+      navigate('/auth/register'); 
+    }, 500);
   };
 
   const handleLearnMore = () => {
     setIsLearnMoreLoading(true);
-    setTimeout(() => setIsLearnMoreLoading(false), 2000);
+    setTimeout(() => setIsLearnMoreLoading(false), 1000);
   };
 
   return (
@@ -69,11 +73,9 @@ const LandingPage = () => {
 
         <div className="relative">
           <div className="rounded-3xl overflow-hidden h-[500px]">
-            {/* Substitute with appropriate medical image as shown in design */}
             <img src={medicalProfessional} alt="Dermatologist examining patient's skin" className="w-full h-full object-cover" />
           </div>
           
-          {/* AI Info Overlays (NFR-USE-01) */}
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl w-64 text-center">
             <h3 className="text-blue-600 font-bold text-xl mb-1">Scanning...</h3>
             <p className="text-gray-500 text-xs font-medium">Neural processing 88%</p>
@@ -90,7 +92,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Features Grid (NFR-USE-05) */}
+      {/* Features Grid */}
       <section className="bg-white py-24">
         <div className="max-w-7xl mx-auto px-8">
           <div className="text-center mb-16">
@@ -101,7 +103,6 @@ const LandingPage = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {/* Feature Cards (NFR-USE-01) */}
             <div className="sm:col-span-2 bg-[#F8F9FA] rounded-3xl p-10 flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-6">
@@ -154,7 +155,6 @@ const LandingPage = () => {
                 </p>
               </div>
               <div className="md:w-1/2 w-full h-32 rounded-xl overflow-hidden shadow-inner">
-                {/* Chart-like element as shown in design */}
                 <img src={healthChart} alt="Health Analytics Chart" className="w-full h-full object-cover opacity-80" />
               </div>
             </div>
@@ -162,7 +162,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Testimonials Section (NFR-USE-05) */}
+      {/* Testimonials */}
       <section className="bg-[#F8F9FA] py-24">
         <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-3 gap-16 items-center">
           <div className="lg:col-span-1">
@@ -214,7 +214,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Final Call to Action Section (NFR-USE-05) */}
+      {/* Final Call to Action Section */}
       <section className="bg-white py-24 px-8">
         <div className="max-w-6xl mx-auto bg-[#0A58CA] rounded-3xl p-16 text-center text-white">
           <h2 className="text-4xl font-extrabold mb-4 tracking-tight leading-tight">

@@ -7,15 +7,9 @@ export const ENDPOINTS = {
         RESET_PASSWORD: "/auth/reset-password",
         ME: "/auth/me",
     },
-    CLINICS: {
-        ACTIVE: "/v1/clinics",
-        CREATE: "/v1/clinics",
-        ACTION: (clinicId) => `/v1/clinics/${clinicId}`,
-    },
-    CLINIC_REQUESTS: {
-        LIST: "/v1/clinic-requests",
-        CREATE: "/v1/clinic-requests",
-        ACTION: (id) => `/v1/clinic-requests/${id}`,
+    GUEST: {
+        SCAN: "/guest/scan",
+        SCAN_RESULT: (scanId) => `/guest/scan/${scanId}`
     },
     DOCTOR: {
         DASHBOARD_SUMMARY: "/dashboard/summary",
@@ -48,7 +42,7 @@ export const ENDPOINTS = {
     },
     PATIENT: {
         DASHBOARD: "/dashboard",
-        
+
         // Scans
         SCAN_UPLOAD: "/scans/upload",
         SCAN_ANALYZE: (scanId) => `/scans/${scanId}/analyze`,
@@ -58,33 +52,42 @@ export const ENDPOINTS = {
         SCAN_DETAIL: (scanId) => `/scans/${scanId}`,
         SCAN_EXPORT_PDF: (scanId) => `/scans/${scanId}/export-pdf`,
         SCAN_SHARE: (scanId) => `/scans/${scanId}/share`,
-        
+
         // Reports
         REPORTS: "/reports",
         REPORT_DETAIL: (reportId) => `/reports/${reportId}`,
         REPORT_DOWNLOAD: (reportId) => `/reports/${reportId}/download`,
         REPORT_PREVIEW: (reportId) => `/reports/${reportId}/preview`,
-        
+
         // Profile
         PROFILE: "/profile",
         PROFILE_PHOTO: "/profile/photo",
-        
+
         // Settings
         SETTINGS: "/settings",
         SETTINGS_ACCOUNT: "/settings/account",
-        SETTINGS_2FA: "/settings/2fa",
         SETTINGS_NOTIFICATIONS: "/settings/notifications",
-        SETTINGS_PRIVACY: "/settings/privacy",
         SETTINGS_PREFERENCES: "/settings/preferences",
-        
+
         // Notifications
         NOTIFICATIONS: "/notifications",
         NOTIFICATION_READ: (notificationId) => `/notifications/${notificationId}/read`,
         NOTIFICATIONS_READ_ALL: "/notifications/read-all",
-        
+
         // Doctors & Verification
         AVAILABLE_DOCTORS: "/doctors/available",
         VERIFICATION_REQUESTS: "/verification-requests",
+
+        // Chat & Consultations
+        CONSULTATIONS: "/consultations",
+        CONSULTATION_INITIATE: "/consultations/initiate",
+        CONSULTATION_DETAIL: (consultationId) => `/consultations/${consultationId}`,
+        CONSULTATION_MESSAGES: (consultationId) => `/consultations/${consultationId}/messages`,
+        CONSULTATION_READ: (consultationId) => `/consultations/${consultationId}/read`,
+        CONSULTATION_READ_ALL: (consultationId) => `/consultations/${consultationId}/read-all`,
+        CONSULTATION_EVENTS: (id) => `/consultations/${id}/events`,
+        CONSULTATION_TYPING: (id) => `/consultations/${id}/typing`,
+        CONSULTATION_AI_ANALYSIS: (id) => `/consultations/${id}/ai-analysis`,
     },
     USER_UI_STATE: "/user-ui-state",
 }

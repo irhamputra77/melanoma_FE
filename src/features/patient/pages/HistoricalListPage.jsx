@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LoadingButton from '../../../components/common/LoadingButton';
 import RecentScanCard from '../components/RecentScanCard';
 import { getScanHistory } from '../services/patientService';
@@ -10,6 +11,7 @@ const formatDate = (dateString) => {
 };
 
 const HistoricalListPage = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
@@ -33,7 +35,6 @@ const HistoricalListPage = () => {
       setAllHistoryList(dataArray);
       setFilteredList(dataArray);
     } catch (error) {
-      console.error("Gagal memuat histori data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -42,7 +43,6 @@ const HistoricalListPage = () => {
   useEffect(() => {
     let result = allHistoryList;
 
-    // Filter by Search (Case ID or Classification)
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       result = result.filter(item => 
@@ -52,16 +52,15 @@ const HistoricalListPage = () => {
       );
     }
 
-    // FIX: Filter by Status yang dikelompokkan dengan benar
     if (statusFilter) {
       result = result.filter(item => {
         const itemStatus = item.status?.toLowerCase() || '';
         const isVerifiedData = itemStatus === 'verified' || itemStatus === 'approved';
 
         if (statusFilter === 'verified') {
-          return isVerifiedData; // Hanya ambil yang verified
+          return isVerifiedData; 
         } else if (statusFilter === 'pending') {
-          return !isVerifiedData; // Ambil SEMUA yang belum verified (reviewing, submitted, pending, dll)
+          return !isVerifiedData; 
         }
         return true;
       });
@@ -136,16 +135,33 @@ const HistoricalListPage = () => {
           <div className="text-center py-10 text-gray-500 font-medium">Memuat data histori...</div>
         ) : currentItems.length > 0 ? (
           currentItems.map((item) => (
-            <RecentScanCard 
-              key={item.id}
-              id={item.id}
-              scanId={`#SCAN-${item.id.substring(0,6).toUpperCase()}`}
-              date={formatDate(item.createdAt)}
-              title={item.analysis?.classification || item.classification || 'Skin Analysis'}
-              status={item.statusLabel || item.status}
-              isVerified={item.status === 'verified' || item.status === 'approved'}
-              image={item.imageUrl}
-            />
+            <div key={item.id} className="relative group">
+              
+              {item.consultation && item.consultation.status !== 'CLOSED' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigate(`/patient/messages/${item.consultation.id}`);
+                  }}
+                  title="Go to Chat"
+                  className="absolute -top-3 -right-2 z-10 bg-[#0A58CA] text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center shadow-md hover:bg-blue-700 transition-colors cursor-pointer border-2 border-white"
+                >
+                  <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                  Active Chat
+                </button>
+              )}
+
+              <RecentScanCard 
+                id={item.id}
+                scanId={`#SCAN-${item.id.substring(0,6).toUpperCase()}`}
+                date={formatDate(item.createdAt)}
+                title={item.analysis?.classification || item.classification || 'Skin Analysis'}
+                status={item.statusLabel || item.status}
+                isVerified={item.status === 'verified' || item.status === 'approved'}
+                image={item.imageUrl}
+              />
+            </div>
           ))
         ) : (
           <div className="text-center py-10 bg-white rounded-2xl border border-gray-100 text-gray-500 shadow-sm">

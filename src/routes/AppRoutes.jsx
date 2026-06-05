@@ -25,6 +25,11 @@ import PatientReportPage from "../features/patient/pages/PatientReportPage";
 import SystemSettingsPatient from "../features/patient/pages/SystemSettingsPatient";
 import HistoricalDetailPage from "../features/patient/pages/HistoricalDetailPage";
 import HistoricalListPage from "../features/patient/pages/HistoricalListPage";
+import ProfilePage from "../features/patient/pages/ProfilePage";
+
+// IMPORT SEMENTARA (Akan error jika file belum dibuat di Tahap 3, abaikan dulu error-nya)
+import PatientMessageRouter from "../features/patient/pages/PatientMessageRouter";
+import PatientChatPage from "../features/patient/pages/PatientChatPage";
 
 import AdminDashboardPage from "../features/admin/pages/AdminDashboardPage";
 import AdminProfilePage from "../features/admin/pages/AdminProfilePage";
@@ -51,6 +56,11 @@ const dashboardRoutes = {
         "history-detail": <HistoricalDetailPage />,
         reports: <PatientReportPage />,
         settings: <SystemSettingsPatient />,
+        profile: <ProfilePage />,
+        
+        // ===== ROUTE BARU UNTUK CHAT =====
+        messages: <PatientMessageRouter />, 
+        "messages-detail": <PatientChatPage />
     },
     admin: {
         dashboard: <AdminDashboardPage />,
@@ -102,6 +112,8 @@ export default function AppRoutes() {
                 <Route path="clinic-requests" element={<RolePage page="clinic-requests" />} />
                 <Route path="activity" element={<RolePage page="activity" />} />
                 <Route path="settings" element={<RolePage page="settings" />} />
+                <Route path="messages" element={<RolePage page="messages" />} />
+                <Route path="messages/:id" element={<RolePage page="messages-detail" />} />
                 <Route path="messages" element={<RolePage page="messages" />} />
             </Route>
 
