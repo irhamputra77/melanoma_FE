@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import LoadingButton from '../../../components/common/LoadingButton';
 import RecentScanCard from '../components/RecentScanCard';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+
 import { 
   uploadPatientScan, 
   analyzePatientScan, 
@@ -37,6 +40,12 @@ const PatientDashboardPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   
+  // STATE BARU: Untuk fitur crop (FE Only)
+  const [isCropping, setIsCropping] = useState(false);
+  const [crop, setCrop] = useState({ unit: '%', width: 80, height: 80, x: 10, y: 10 });
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const imgRef = useRef(null); // Ref untuk elemen image di dalam ReactCrop
+
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -79,7 +88,10 @@ const PatientDashboardPage = () => {
         return;
       }
       setSelectedFile(file);
+      // Bersihkan URL lama jika ada
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
       setImagePreviewUrl(URL.createObjectURL(file));
+      setIsCropping(false); // Pastikan tidak dalam mode crop saat file baru dipilih
       setViewState('preview');
     }
   };
@@ -88,10 +100,51 @@ const PatientDashboardPage = () => {
     setSelectedFile(null);
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     setImagePreviewUrl(null);
+    setIsCropping(false); // Reset mode crop
     setBodySite('');
     setComplaint('');
     setViewState('upload');
     setErrorMessage('');
+  };
+
+  // FUNGSI BARU: Logika kanvas untuk menyimpan hasil crop (FE Only)
+  const handleSaveCrop = async () => {
+    if (!completedCrop || !imgRef.current) return;
+
+    const image = imgRef.current;
+    const canvas = document.createElement('canvas');
+    
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    
+    canvas.width = completedCrop.width * scaleX;
+    canvas.height = completedCrop.height * scaleY;
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY
+    );
+
+    canvas.toBlob((blob) => {
+        if (!blob) return;
+        // Generate nama file unik berdasarkan timestamp
+        const timestamp = new Date().getTime();
+        const croppedFile = new File([blob], `cropped_image_${timestamp}.jpeg`, { type: "image/jpeg" });
+        const croppedUrl = URL.createObjectURL(blob);
+        
+        if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); // Bersihkan preview lama
+        setImagePreviewUrl(croppedUrl);
+        setSelectedFile(croppedFile);
+        setIsCropping(false); // Keluar dari mode crop
+    }, 'image/jpeg');
   };
 
   const handleAnalyze = async () => {
@@ -147,7 +200,7 @@ const PatientDashboardPage = () => {
     }
   };
 
-  // FIX PENTING: Menyesuaikan properti object dengan respon Backend (aiPrediction & aiConfidence)
+  // Menyesuaikan properti object dengan respon Backend (aiPrediction & aiConfidence)
   let confValue = Number(analysisResult?.aiConfidence || analysisResult?.confidence || 0);
   let displayConf = confValue > 1 ? confValue.toFixed(1) : (confValue * 100).toFixed(1);
   if (displayConf === "0.0") displayConf = "--";
@@ -168,7 +221,14 @@ const PatientDashboardPage = () => {
 
           {successMessage && <p className="mb-4 text-sm text-green-600 bg-green-50 p-3 rounded-lg font-medium">{successMessage}</p>}
 
-          <div className={`relative rounded-2xl overflow-hidden bg-gray-50 flex flex-col items-center justify-center mb-4 ${viewState === 'upload' ? 'border-2 border-dashed border-gray-200 h-72' : 'h-[300px]'}`}>
+          {/* PERBAIKAN: Container dinamis menyesuaikan mode crop */}
+          <div className={`relative rounded-2xl bg-gray-50 flex flex-col items-center justify-center mb-4 ${
+            viewState === 'upload' 
+              ? 'border-2 border-dashed border-gray-200 h-72 overflow-hidden' 
+              : isCropping
+                ? 'h-auto min-h-[300px]' // Auto height saat crop, jangan overflow-hidden
+                : 'h-[300px] overflow-hidden' // Fixed height saat preview normal/result
+          }`}>
             {viewState === 'upload' && (
               <div className="text-center cursor-pointer w-full h-full flex flex-col items-center justify-center" onClick={() => fileInputRef.current.click()}>
                 <svg className="w-12 h-12 text-blue-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
@@ -180,19 +240,77 @@ const PatientDashboardPage = () => {
 
             {(viewState === 'preview' || viewState === 'result') && (
               <>
-                <img src={imagePreviewUrl} alt="Preview" className="w-full h-full object-contain bg-black" />
-                {viewState === 'preview' && (
-                  <div className="absolute top-4 right-4 flex space-x-2 z-10">
-                    <button onClick={handleDeleteImage} className="bg-white/90 backdrop-blur p-2.5 rounded-lg text-red-500 hover:bg-white shadow-sm transition">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
+                {/* PERBAIKAN: Kondisional rendering Preview vs Crop UI (Desain persis Guest) */}
+                {!isCropping ? (
+                  // Normal Preview / Result dengan tombol aksi melayang
+                  <>
+                    <img 
+                      src={imagePreviewUrl} 
+                      alt="Preview" 
+                      className="w-full h-full object-contain bg-black" 
+                    />
+                    {/* Tombol Aksi Melayang (Hanya muncul di view preview, bukan result) */}
+                    {viewState === 'preview' && (
+                      <div className="absolute top-4 right-4 flex space-x-2 z-10">
+                        {/* Tombol Crop (Edit) */}
+                        <button 
+                          onClick={() => setIsCropping(true)} 
+                          className="bg-white/90 backdrop-blur p-2.5 rounded-lg text-blue-600 hover:bg-white shadow-sm transition" 
+                          title="Potong Gambar"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                          </svg>
+                        </button>
+                        {/* Tombol Delete */}
+                        <button 
+                          onClick={handleDeleteImage} 
+                          className="bg-white/90 backdrop-blur p-2.5 rounded-lg text-red-500 hover:bg-white shadow-sm transition"
+                          title="Hapus Gambar"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Antarmuka Pemotongan (Crop UI) - FE Only (Desain persis Guest)
+                  <div className="flex flex-col items-center w-full bg-gray-900 p-6 rounded-2xl">
+                    <ReactCrop
+                        crop={crop}
+                        onChange={(c) => setCrop(c)}
+                        onComplete={(c) => setCompletedCrop(c)}
+                        aspect={undefined} // Bebas crop
+                    >
+                        <img 
+                            ref={imgRef} 
+                            src={imagePreviewUrl} 
+                            alt="Crop Area" 
+                            className="max-h-[500px] w-auto object-contain"
+                        />
+                    </ReactCrop>
+                    <div className="flex space-x-4 mt-6">
+                        <button 
+                          onClick={() => setIsCropping(false)} 
+                          className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition font-medium text-sm"
+                        >
+                            Batal
+                        </button>
+                        <button 
+                          onClick={handleSaveCrop} 
+                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                        >
+                            Simpan Potongan
+                        </button>
+                    </div>
                   </div>
                 )}
               </>
             )}
           </div>
 
-          {viewState === 'preview' && (
+          {/* PERBAIKAN: Sembunyikan form saat sedang melakukan crop */}
+          {viewState === 'preview' && !isCropping && (
             <div className="mb-6 space-y-4 animate-fadeIn">
               <div>
                 <label className="block text-gray-700 text-[11px] font-bold mb-2 tracking-widest uppercase">Lokasi di Tubuh</label>
@@ -208,7 +326,8 @@ const PatientDashboardPage = () => {
           {errorMessage && <p className="mb-4 text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg font-medium shadow-sm">{errorMessage}</p>}
 
           <div className="flex justify-end">
-            {viewState === 'preview' && (
+            {/* PERBAIKAN: Sembunyikan tombol utama saat sedang melakukan crop */}
+            {viewState === 'preview' && !isCropping && (
               <LoadingButton onClick={handleAnalyze} isLoading={isAnalyzing} className="px-6 py-2.5 w-full md:w-auto">Start AI Analysis</LoadingButton>
             )}
             {viewState === 'result' && (
@@ -253,7 +372,7 @@ const PatientDashboardPage = () => {
             <>
               <div className="flex justify-between items-center mb-4">
                 <span className={`text-xs font-bold px-3 py-1 rounded-full ${safeRisk === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                  {safeRisk}
+                  {safeRisk} RISK
                 </span>
                 <span className="text-gray-500 text-xs font-medium">ID: #{currentScanId?.substring(0, 6).toUpperCase()}</span>
               </div>
@@ -271,7 +390,7 @@ const PatientDashboardPage = () => {
           ) : (
             <>
               <div className="flex justify-between items-center mb-4">
-                <span className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full">UNKNOWN</span>
+                <span className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full">UNKNOWN RISK</span>
                 <span className="text-gray-400 text-xs font-medium">ID: -</span>
               </div>
               <h2 className="text-3xl font-bold text-gray-300 mb-1">-</h2>

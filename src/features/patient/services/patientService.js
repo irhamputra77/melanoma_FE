@@ -5,7 +5,6 @@ const patientBaseURL = import.meta.env.VITE_PATIENT_API_BASE_URL || "http://loca
 const unwrap = (response) => response.data?.data ?? response.data;
 const patientRequest = (config) => api.request({ baseURL: patientBaseURL, ...config });
 
-
 // UTILS
 function normalizePaginationParams(params = {}) {
     const queryParams = {};
@@ -151,32 +150,41 @@ export const updatePatientProfilePhoto = async (photo) => {
 
 // SETTINGS
 export const getPatientSettings = async () => {
-    const response = await patientRequest({ method: "get", url: ENDPOINTS.PATIENT.SETTINGS });
+    const response = await patientRequest({
+        method: "get",
+        url: ENDPOINTS.PATIENT.SETTINGS,
+    });
+
     return unwrap(response);
 };
 
 export const updatePatientAccountSettings = async (payload) => {
-    const response = await patientRequest({ method: "patch", url: ENDPOINTS.PATIENT.SETTINGS_ACCOUNT, data: payload });
-    return unwrap(response);
-};
+    const response = await patientRequest({
+        method: "patch",
+        url: ENDPOINTS.PATIENT.SETTINGS_ACCOUNT,
+        data: payload,
+    });
 
-export const updatePatientTwoFactor = async (enabled) => {
-    const response = await patientRequest({ method: "patch", url: ENDPOINTS.PATIENT.SETTINGS_2FA, data: { enabled } });
     return unwrap(response);
 };
 
 export const updatePatientNotificationSettings = async (payload) => {
-    const response = await patientRequest({ method: "patch", url: ENDPOINTS.PATIENT.SETTINGS_NOTIFICATIONS, data: payload });
-    return unwrap(response);
-};
+    const response = await patientRequest({
+        method: "patch",
+        url: ENDPOINTS.PATIENT.SETTINGS_NOTIFICATIONS,
+        data: payload,
+    });
 
-export const updatePatientPrivacySettings = async (payload) => {
-    const response = await patientRequest({ method: "patch", url: ENDPOINTS.PATIENT.SETTINGS_PRIVACY, data: payload });
     return unwrap(response);
 };
 
 export const updatePatientPreferences = async (payload) => {
-    const response = await patientRequest({ method: "patch", url: ENDPOINTS.PATIENT.SETTINGS_PREFERENCES, data: payload });
+    const response = await patientRequest({
+        method: "patch",
+        url: ENDPOINTS.PATIENT.SETTINGS_PREFERENCES,
+        data: payload,
+    });
+
     return unwrap(response);
 };
 
@@ -211,6 +219,106 @@ export const submitVerificationRequest = async (payload) => {
         method: "post",
         url: ENDPOINTS.PATIENT.VERIFICATION_REQUESTS,
         data: payload,
+    });
+    return unwrap(response);
+};
+
+// CONSULTATIONS & CHAT
+
+export const initiateConsultation = async (payload) => {
+    const response = await patientRequest({ 
+        method: "post", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_INITIATE, 
+        data: payload 
+    });
+    return unwrap(response);
+};
+
+export const getConsultations = async (params) => {
+    const response = await patientRequest({ 
+        method: "get", 
+        url: ENDPOINTS.PATIENT.CONSULTATIONS,
+        params: normalizePaginationParams(params)
+    });
+    return response.data;
+};
+
+export const getConsultationDetail = async (consultationId) => {
+    const response = await patientRequest({ 
+        method: "get", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_DETAIL(consultationId) 
+    });
+    return unwrap(response);
+};
+
+export const getConsultationMessages = async (consultationId, params) => {
+    const response = await patientRequest({ 
+        method: "get", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_MESSAGES(consultationId),
+        params: normalizePaginationParams(params)
+    });
+    return response.data;
+};
+
+export const sendConsultationMessage = async (consultationId, message, file = null) => {
+    if (file) {
+        const formData = new FormData();
+        formData.append('message', message || '');
+        formData.append('attachments', file); 
+        
+        const response = await patientRequest({ 
+            method: "post", 
+            url: ENDPOINTS.PATIENT.CONSULTATION_MESSAGES(consultationId), 
+            data: formData,
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return unwrap(response);
+    }
+    
+    const response = await patientRequest({ 
+        method: "post", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_MESSAGES(consultationId), 
+        data: { message } 
+    });
+    return unwrap(response);
+};
+
+export const getConsultationSSEUrl = (consultationId) => {
+    return `${patientBaseURL}${ENDPOINTS.PATIENT.CONSULTATION_EVENTS(consultationId)}`;
+};
+
+export const markConsultationMessagesAsRead = async (consultationId, messageIds) => {
+    const response = await patientRequest({ 
+        method: "patch", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_READ(consultationId), 
+        data: { messageIds } 
+    });
+    return unwrap(response);
+};
+
+export const markAllConsultationMessagesAsRead = async (consultationId) => {
+    const response = await patientRequest({ 
+        method: "patch", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_READ_ALL(consultationId) 
+    });
+    return unwrap(response);
+};
+
+export const sendTypingStatus = async (consultationId, isTyping) => {
+    const response = await patientRequest({
+        method: "post",
+        url: ENDPOINTS.PATIENT.CONSULTATION_TYPING(consultationId),
+        data: { isTyping }
+    });
+    return unwrap(response);
+};
+
+export const getConsultationAiAnalysis = async (consultationId) => {
+    const response = await patientRequest({ 
+        method: "get", 
+        url: ENDPOINTS.PATIENT.CONSULTATION_AI_ANALYSIS(consultationId) 
     });
     return unwrap(response);
 };
