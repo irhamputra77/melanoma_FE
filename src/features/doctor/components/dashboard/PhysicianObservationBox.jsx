@@ -26,13 +26,6 @@ export default function PhysicianObservationBox({ value, onChange, onSave, savin
                 />
 
                 <div className="absolute right-5 bottom-5 flex items-center gap-4 text-slate-600">
-                    <button className="hover:text-blue-600 transition">
-                        <Mic size={20} />
-                    </button>
-
-                    <button className="hover:text-blue-600 transition">
-                        <Paperclip size={20} />
-                    </button>
                 </div>
             </div>
         </div>

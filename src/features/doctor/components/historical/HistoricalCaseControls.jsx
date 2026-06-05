@@ -41,16 +41,16 @@ export default function HistoricalCaseControls({
 
     return (
         <div>
-            <p className="max-w-xl text-lg leading-relaxed text-slate-600">
+            <p className="max-w-xl text-base leading-relaxed text-slate-600">
                 Review and verify AI-assisted diagnoses across your patient registry.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
                     type="button"
                     onClick={onDownloadHistory}
                     disabled={actionLoading === "download"}
-                    className="flex items-center gap-2 rounded-xl bg-slate-200 px-6 py-3 text-sm font-bold text-slate-900"
+                    className="flex h-10 items-center gap-2 rounded-xl bg-slate-200 px-4 text-sm font-bold text-slate-900"
                 >
                     <Download size={17} />
                     {actionLoading === "download" ? "Preparing..." : "Download Case History"}
@@ -60,15 +60,15 @@ export default function HistoricalCaseControls({
                     type="button"
                     onClick={onGenerateReport}
                     disabled={actionLoading === "report"}
-                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm"
+                    className="flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm"
                 >
                     <FileText size={17} />
                     {actionLoading === "report" ? "Generating..." : "Generate Report"}
                 </button>
             </div>
 
-            <div className="mt-8 flex h-14 items-center gap-4 rounded-2xl bg-slate-200/50 px-5 text-slate-500">
-                <Search size={22} />
+            <div className="mt-5 flex h-11 items-center gap-3 rounded-xl bg-slate-200/50 px-4 text-slate-500">
+                <Search size={19} />
                 <input
                     value={filters.search}
                     onChange={(event) => onFilterChange?.({ search: event.target.value, page: 1 })}
@@ -77,7 +77,7 @@ export default function HistoricalCaseControls({
                 />
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-6">
+            <div className="mt-3 flex flex-wrap gap-3">
                 <FilterSelect
                     icon={<Stethoscope size={17} />}
                     label="Diagnosis"
@@ -107,7 +107,7 @@ export default function HistoricalCaseControls({
                     <button
                         type="button"
                         onClick={() => setDateOpen((current) => !current)}
-                        className={`flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium shadow-sm ${
+                        className={`flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium shadow-sm ${
                             dateActive ? "bg-blue-600 text-white" : "bg-white text-slate-900"
                         }`}
                     >
@@ -117,7 +117,7 @@ export default function HistoricalCaseControls({
                     </button>
 
                     {dateOpen && (
-                        <div className="absolute right-0 top-14 z-20 w-80 rounded-2xl bg-white p-4 shadow-xl shadow-slate-900/10 ring-1 ring-slate-100">
+                        <div className="absolute right-0 top-12 z-20 w-80 rounded-2xl bg-white p-4 shadow-xl shadow-slate-900/10 ring-1 ring-slate-100">
                             <div className="grid gap-3">
                                 <label className="block">
                                     <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">Start Date</span>
@@ -125,7 +125,7 @@ export default function HistoricalCaseControls({
                                         type="date"
                                         value={draftDates.startDate}
                                         onChange={(event) => setDraftDates((current) => ({ ...current, startDate: event.target.value }))}
-                                        className="mt-2 h-11 w-full rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100"
+                                        className="mt-2 h-10 w-full rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100"
                                     />
                                 </label>
                                 <label className="block">
@@ -135,7 +135,7 @@ export default function HistoricalCaseControls({
                                         value={draftDates.endDate}
                                         min={draftDates.startDate || undefined}
                                         onChange={(event) => setDraftDates((current) => ({ ...current, endDate: event.target.value }))}
-                                        className="mt-2 h-11 w-full rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100"
+                                        className="mt-2 h-10 w-full rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100"
                                     />
                                 </label>
                             </div>
@@ -165,7 +165,7 @@ export default function HistoricalCaseControls({
 
 function FilterSelect({ icon, label, value, options, onChange }) {
     return (
-        <label className="relative flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-slate-900 shadow-sm">
+    <label className="relative flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-slate-900 shadow-sm">
             <span className="text-blue-600">{icon}</span>
             <span className="sr-only">{label}</span>
             <select

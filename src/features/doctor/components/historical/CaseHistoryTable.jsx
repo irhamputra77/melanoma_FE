@@ -24,15 +24,15 @@ export default function CaseHistoryTable({
     onSelectCase,
 }) {
     return (
-        <div className="mt-9 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full table-fixed text-left">
-                <thead className="bg-slate-100 text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-700">
+                <thead className="bg-slate-100 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-700">
                     <tr>
-                        <th className="w-[16%] px-20 py-5">Date</th>
-                        <th className="w-[22%] px-6 py-5">Patient</th>
-                        <th className="w-[20%] px-6 py-5">Clinical Image</th>
-                        <th className="w-[22%] px-6 py-5">AI Diagnosis</th>
-                        <th className="w-[20%] px-6 py-5">Verification</th>
+                        <th className="w-[15%] px-8 py-4">Date</th>
+                        <th className="w-[25%] px-4 py-4">Patient</th>
+                        <th className="w-[18%] px-4 py-4">Clinical Image</th>
+                        <th className="w-[24%] px-4 py-4">AI Diagnosis</th>
+                        <th className="w-[18%] px-4 py-4">Verification</th>
                     </tr>
                 </thead>
 
@@ -64,8 +64,8 @@ export default function CaseHistoryTable({
                                 onClick={() => onSelectCase?.(item)}
                                 className={`${selectedCaseId === item.caseId ? "bg-slate-50" : "bg-white"} cursor-pointer`}
                             >
-                                <td className="px-20 py-6 align-middle">
-                                    <p className="text-base font-medium leading-tight text-slate-900">
+                                <td className="px-8 py-4 align-middle">
+                                    <p className="text-sm font-medium leading-tight text-slate-900">
                                         {dateLines.map((line) => (
                                             <span key={line} className="block">
                                                 {line}
@@ -74,31 +74,33 @@ export default function CaseHistoryTable({
                                     </p>
                                 </td>
 
-                                <td className="px-6 py-6 align-middle">
-                                    <p className="text-base font-extrabold leading-tight text-slate-900">
+                                <td className="px-4 py-4 align-middle">
+                                    <p className="text-sm font-extrabold leading-tight text-slate-900">
                                         {(item.patient?.name || "-").split(" ").map((part) => (
                                             <span key={part} className="block">
                                                 {part}
                                             </span>
                                         ))}
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-500">ID: {item.patient?.id || item.caseId}</p>
+                                    <p className="mt-1 max-w-[180px] truncate text-xs text-slate-500">
+                                        ID: {item.patient?.id || item.caseId}
+                                    </p>
                                 </td>
 
-                                <td className="px-6 py-6 align-middle">
+                                <td className="px-4 py-4 align-middle">
                                     {item.clinicalImageUrl ? (
                                         <img
                                             src={toAssetUrl(item.clinicalImageUrl)}
                                             alt={`Case ${item.caseId}`}
-                                            className="h-12 w-12 rounded-xl object-cover"
+                                            className="h-10 w-10 rounded-lg object-cover"
                                         />
                                     ) : (
                                         <LesionThumbnail />
                                     )}
                                 </td>
 
-                                <td className="px-6 py-6 align-middle">
-                                    <p className="text-base font-extrabold leading-tight text-slate-900">
+                                <td className="px-4 py-4 align-middle">
+                                    <p className="text-sm font-extrabold leading-tight text-slate-900">
                                         {aiDiagnosis.split(" ").map((part, index) => (
                                             <span key={`${part}-${index}`} className="block">
                                                 {part}
@@ -107,9 +109,9 @@ export default function CaseHistoryTable({
                                     </p>
                                 </td>
 
-                                <td className="px-6 py-6 align-middle">
+                                <td className="px-4 py-4 align-middle">
                                     <span
-                                        className={`inline-flex min-w-20 justify-center rounded-full px-4 py-1 text-[11px] font-extrabold uppercase ${statusClass[status] || statusClass.pending_review}`}
+                                        className={`inline-flex min-w-20 justify-center rounded-full px-3 py-1 text-[10px] font-extrabold uppercase ${statusClass[status] || statusClass.pending_review}`}
                                     >
                                         {statusLabel[status] || status}
                                     </span>

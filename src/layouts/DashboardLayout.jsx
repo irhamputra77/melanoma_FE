@@ -226,10 +226,10 @@ export default function DashboardLayout() {
             </aside>
 
             <main className="flex-1">
-                <header className="relative z-40 flex h-[109px] items-center justify-between bg-slate-100 px-10">
+                <header className="relative z-40 flex h-[92px] items-center justify-between bg-slate-100 px-8">
                     <div>
                         {!activeMenu?.hideHeaderTitle && (
-                            <h1 className="text-[32px] font-bold text-slate-900">
+                            <h1 className="text-[28px] font-bold text-slate-900">
                                 {pageTitle}
                             </h1>
                         )}
@@ -283,7 +283,7 @@ export default function DashboardLayout() {
                     </div>
                 </header>
 
-                <section className="px-10 pb-10">
+                <section className="px-8 pb-8">
                     <Outlet />
                 </section>
             </main>

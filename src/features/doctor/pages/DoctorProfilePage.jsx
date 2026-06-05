@@ -186,6 +186,7 @@ export default function DoctorProfilePage() {
         setSuccess("");
 
         try {
+            let uploadedPhotoUrl = "";
             const tasks = [
                 updateDoctorProfile({
                     fullName: profile.fullName,
@@ -200,7 +201,12 @@ export default function DoctorProfilePage() {
             }
 
             if (photoFile) {
-                tasks.push(updateDoctorProfilePhoto(photoFile));
+                tasks.push(
+                    updateDoctorProfilePhoto(photoFile).then((result) => {
+                        uploadedPhotoUrl = extractProfilePhotoUrl(result);
+                        return result;
+                    })
+                );
             }
 
             await Promise.all(tasks);
@@ -220,6 +226,10 @@ export default function DoctorProfilePage() {
                 );
             } else {
                 nextProfile.email = normalizedEmail;
+            }
+
+            if (uploadedPhotoUrl) {
+                nextProfile.profilePhotoUrl = uploadedPhotoUrl;
             }
 
             setProfile(nextProfile);
@@ -367,16 +377,6 @@ export default function DoctorProfilePage() {
                 </section>
             </div>
 
-            <div className="mt-10 grid gap-6 lg:grid-cols-[0.95fr_1.95fr]">
-                <section className="rounded-[18px] border border-blue-100 bg-blue-50 p-6">
-                    <div className="flex items-start gap-4">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-                            <ShieldCheck size={21} />
-                        </span>
-                    </div>
-                </section>
-            </div>
-
             <div className="mt-16 flex items-center justify-end gap-12">
                 <button
                     type="button"
@@ -481,8 +481,29 @@ function normalizeDoctorProfile(profileData, settingsData) {
             user.photoUrl ||
             user.avatarUrl ||
             user.avatar ||
+            user.imageUrl ||
+            user.doctorProfile?.profilePhotoUrl ||
+            user.doctorProfile?.photoUrl ||
+            user.doctorProfile?.avatarUrl ||
+            user.profile?.profilePhotoUrl ||
+            user.profile?.photoUrl ||
+            profileData?.profilePhotoUrl ||
+            profileData?.photoUrl ||
+            profileData?.avatarUrl ||
             "",
     };
+}
+
+function extractProfilePhotoUrl(result) {
+    return (
+        result?.photoUrl ||
+        result?.profilePhotoUrl ||
+        result?.avatarUrl ||
+        result?.data?.photoUrl ||
+        result?.data?.profilePhotoUrl ||
+        result?.data?.avatarUrl ||
+        ""
+    );
 }
 
 function normalizeGender(value) {

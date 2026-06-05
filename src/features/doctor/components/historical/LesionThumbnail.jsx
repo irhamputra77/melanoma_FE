@@ -1,6 +1,6 @@
 export default function LesionThumbnail({ variant = "brown", size = "small", muted = false }) {
-    const sizeClass = size === "large" ? "h-[285px] w-full" : "h-12 w-12";
-    const lesionClass = size === "large" ? "h-[190px] w-[190px]" : "h-8 w-8";
+    const sizeClass = size === "large" ? "h-[190px] w-full" : "h-12 w-12";
+    const lesionClass = size === "large" ? "h-[130px] w-[130px]" : "h-8 w-8";
 
     const palette = {
         brown: {

@@ -179,7 +179,6 @@ export const updateDoctorProfilePhoto = async (photo) => {
         method: "patch",
         url: ENDPOINTS.DOCTOR.PROFILE_PHOTO,
         data: payload,
-        headers: { "Content-Type": "multipart/form-data" },
     });
 
     return unwrap(response);

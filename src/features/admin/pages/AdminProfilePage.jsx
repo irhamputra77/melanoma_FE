@@ -111,7 +111,13 @@ export default function AdminProfilePage() {
 
         try {
             const result = await updateAdminProfilePhoto(file);
-            const photoUrl = result?.photoUrl || result?.profilePhotoUrl || result?.avatarUrl;
+            let photoUrl = extractProfilePhotoUrl(result);
+
+            if (!photoUrl) {
+                const freshProfile = normalizeProfile(await getAdminProfile());
+                photoUrl = freshProfile.avatar;
+            }
+
             if (photoUrl) {
                 const nextProfile = { ...profile, avatar: photoUrl };
                 setProfile(nextProfile);
@@ -313,8 +319,31 @@ function normalizeProfile(data) {
         birthDate: formatDateInput(account.birthDate || data?.birthDate || defaultProfile.birthDate),
         status: titleCase(account.status || data?.status || defaultProfile.status),
         joined: formatJoined(account.joinedAt || account.createdAt || data?.joinedAt || data?.createdAt || defaultProfile.joined),
-        avatar: account.profilePhotoUrl || account.avatarUrl || data?.profilePhotoUrl || data?.avatarUrl || defaultProfile.avatar,
+        avatar:
+            account.profilePhotoUrl ||
+            account.profilePhoto ||
+            account.photoUrl ||
+            account.avatarUrl ||
+            account.avatar ||
+            data?.profilePhotoUrl ||
+            data?.profilePhoto ||
+            data?.photoUrl ||
+            data?.avatarUrl ||
+            data?.avatar ||
+            defaultProfile.avatar,
     };
+}
+
+function extractProfilePhotoUrl(result) {
+    return (
+        result?.photoUrl ||
+        result?.profilePhotoUrl ||
+        result?.avatarUrl ||
+        result?.data?.photoUrl ||
+        result?.data?.profilePhotoUrl ||
+        result?.data?.avatarUrl ||
+        ""
+    );
 }
 
 function titleCase(value) {

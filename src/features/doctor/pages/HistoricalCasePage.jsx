@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CaseHistoryTable from "../components/historical/CaseHistoryTable";
 import HistoricalCaseControls from "../components/historical/HistoricalCaseControls";
 import PatientDetailPanel from "../components/historical/PatientDetailPanel";
@@ -16,13 +16,13 @@ const initialFilters = {
     startDate: "",
     endDate: "",
     page: 1,
-    limit: 10,
+    limit: 5,
 };
 
 export default function HistoricalCasePage() {
     const [filters, setFilters] = useState(initialFilters);
     const [cases, setCases] = useState([]);
-    const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0 });
+    const [meta, setMeta] = useState({ page: 1, limit: 5, total: 0 });
     const [selectedCase, setSelectedCase] = useState(null);
     const [evolutionData, setEvolutionData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -30,6 +30,10 @@ export default function HistoricalCasePage() {
     const [actionLoading, setActionLoading] = useState("");
     const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
+    const leftColumnRef = useRef(null);
+    const [detailPanelHeight, setDetailPanelHeight] = useState(0);
+    const totalPages = Math.max(1, Math.ceil(Number(meta.total || 0) / Number(meta.limit || filters.limit || 5)));
+    const currentPage = Number(meta.page || filters.page || 1);
 
     useEffect(() => {
         let isMounted = true;
@@ -41,7 +45,7 @@ export default function HistoricalCasePage() {
                 const nextCases = Array.isArray(response.data) ? response.data : [];
                 const nextMeta = response.meta || {
                     page: Number(filters.page || 1),
-                    limit: Number(filters.limit || 10),
+                    limit: Number(filters.limit || 5),
                     total: 0,
                 };
 
@@ -108,6 +112,27 @@ export default function HistoricalCasePage() {
         };
     }, [selectedCase]);
 
+    useEffect(() => {
+        const element = leftColumnRef.current;
+        if (!element) return undefined;
+
+        const updateHeight = () => {
+            setDetailPanelHeight(Math.max(420, Math.ceil(element.getBoundingClientRect().height)));
+        };
+
+        updateHeight();
+
+        if (typeof ResizeObserver === "undefined") {
+            window.addEventListener("resize", updateHeight);
+            return () => window.removeEventListener("resize", updateHeight);
+        }
+
+        const observer = new ResizeObserver(updateHeight);
+        observer.observe(element);
+
+        return () => observer.disconnect();
+    }, [cases.length, loading, filters.limit, currentPage, totalPages]);
+
     const updateFilters = (nextFilters) => {
         setLoading(true);
         setFilters((current) => ({
@@ -160,9 +185,6 @@ export default function HistoricalCasePage() {
         }
     };
 
-    const totalPages = Math.max(1, Math.ceil(Number(meta.total || 0) / Number(meta.limit || filters.limit || 10)));
-    const currentPage = Number(meta.page || filters.page || 1);
-
     return (
         <>
             {error && (
@@ -176,8 +198,8 @@ export default function HistoricalCasePage() {
                 </div>
             )}
 
-            <div className="grid grid-cols-12 gap-10">
-                <div className="col-span-12 2xl:col-span-9">
+            <div className="grid grid-cols-12 gap-6">
+                <div ref={leftColumnRef} className="col-span-12 2xl:col-span-9">
                     <HistoricalCaseControls
                         filters={filters}
                         onFilterChange={updateFilters}
@@ -191,16 +213,16 @@ export default function HistoricalCasePage() {
                         selectedCaseId={selectedCase?.caseId}
                         onSelectCase={handleSelectCase}
                     />
-                    <p className="mt-4 text-sm text-slate-500">
+                    <p className="mt-3 text-xs text-slate-500">
                         Showing {cases.length} of {meta.total} cases
                     </p>
-                    <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mt-3 flex flex-col gap-3 rounded-xl bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
-                            <span className="text-sm font-bold text-slate-600">Rows</span>
+                            <span className="text-xs font-bold text-slate-600">Rows</span>
                             <select
                                 value={filters.limit}
                                 onChange={(event) => updateFilters({ limit: Number(event.target.value), page: 1 })}
-                                className="h-10 rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800 outline-none"
+                                className="h-9 rounded-lg bg-slate-100 px-3 text-xs font-bold text-slate-800 outline-none"
                             >
                                 {[5, 10, 20, 50].map((limit) => (
                                     <option key={limit} value={limit}>{limit}</option>
@@ -212,18 +234,18 @@ export default function HistoricalCasePage() {
                                 type="button"
                                 onClick={() => updateFilters({ page: Math.max(1, currentPage - 1) })}
                                 disabled={loading || currentPage <= 1}
-                                className="h-10 rounded-xl bg-slate-100 px-4 text-sm font-extrabold text-slate-600 disabled:text-slate-300"
+                                className="h-9 rounded-lg bg-slate-100 px-3 text-xs font-extrabold text-slate-600 disabled:text-slate-300"
                             >
                                 Previous
                             </button>
-                            <span className="text-sm font-extrabold text-slate-700">
+                            <span className="text-xs font-extrabold text-slate-700">
                                 Page {currentPage} of {totalPages}
                             </span>
                             <button
                                 type="button"
                                 onClick={() => updateFilters({ page: Math.min(totalPages, currentPage + 1) })}
                                 disabled={loading || currentPage >= totalPages}
-                                className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white disabled:bg-blue-200"
+                                className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-extrabold text-white disabled:bg-blue-200"
                             >
                                 Next
                             </button>
@@ -231,7 +253,12 @@ export default function HistoricalCasePage() {
                     </div>
                 </div>
 
-                <div className="col-span-12 2xl:col-span-3">
+                <div
+                    className="col-span-12 2xl:col-span-3 2xl:h-[var(--history-detail-height)]"
+                    style={{
+                        "--history-detail-height": detailPanelHeight ? `${detailPanelHeight}px` : "auto",
+                    }}
+                >
                     <PatientDetailPanel
                         evolutionData={evolutionData}
                         loading={evolutionLoading}
