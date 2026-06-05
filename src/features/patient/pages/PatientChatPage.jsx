@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
 import {
     getConsultationDetail,
     getConsultationMessages,
@@ -28,6 +27,7 @@ const PatientChatPage = () => {
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const doctorTypingTimeoutRef = useRef(null);
+    const refreshIntervalRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -53,71 +53,61 @@ const PatientChatPage = () => {
                 await markAllConsultationMessagesAsRead(id);
                 setTimeout(scrollToBottom, 200);
 
-                const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                const token =
+                    sessionStorage.getItem('token') ||
+                    sessionStorage.getItem('accessToken') ||
+                    localStorage.getItem('token') ||
+                    localStorage.getItem('accessToken');
                 const sseUrl = getConsultationSSEUrl(id);
 
-                fetchEventSource(sseUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'text/event-stream',
-                    },
+                connectConsultationEvents({
+                    url: sseUrl,
+                    token,
                     signal: ctrl.signal,
-                    
-                    onopen(res) {
-                        if (res.ok && res.status === 200) {
-                            console.log("SSE Connection Established!");
-                        } else if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-                            throw new Error("Client Error");
+                    onEvent: (parsedData) => {
+                        if (!isMounted) return;
+
+                        switch (parsedData.type) {
+                            case 'connection:ready':
+                                break;
+
+                            case 'message:new':
+                            case 'NEW_MESSAGE':
+                                fetchMessages();
+                                if (parsedData.payload?.senderRole !== 'patient') {
+                                    markAllConsultationMessagesAsRead(id);
+                                }
+                                setTimeout(scrollToBottom, 100);
+                                break;
+
+                            case 'message:read':
+                            case 'MESSAGES_READ':
+                                fetchMessages();
+                                break;
+
+                            case 'typing':
+                            case 'USER_TYPING':
+                                if (parsedData.payload?.role !== 'patient' && parsedData.payload?.isTyping) {
+                                    setIsDoctorTyping(true);
+                                    clearTimeout(doctorTypingTimeoutRef.current);
+                                    doctorTypingTimeoutRef.current = setTimeout(() => {
+                                        setIsDoctorTyping(false);
+                                    }, 3000);
+                                } else {
+                                    setIsDoctorTyping(false);
+                                }
+                                break;
+
+                            default:
+                                break;
                         }
                     },
-                    
-                    onmessage(event) {
-                        if (!isMounted) return;
-                        if (!event.data) return;
+                }).catch(() => {});
 
-                        try {
-                            const parsedData = JSON.parse(event.data);
-                            
-                            switch (parsedData.type) {
-                                case 'connection:ready':
-                                    break;
-                                
-                                case 'message:new':
-                                case 'NEW_MESSAGE':
-                                    fetchMessages();
-                                    if (parsedData.payload?.senderRole !== 'patient') {
-                                        markAllConsultationMessagesAsRead(id);
-                                    }
-                                    setTimeout(scrollToBottom, 100);
-                                    break;
-
-                                case 'message:read':
-                                case 'MESSAGES_READ':
-                                    fetchMessages();
-                                    break;
-
-                                case 'typing':
-                                case 'USER_TYPING':
-                                    if (parsedData.payload?.role !== 'patient' && parsedData.payload?.isTyping) {
-                                        setIsDoctorTyping(true);
-                                        clearTimeout(doctorTypingTimeoutRef.current);
-                                        doctorTypingTimeoutRef.current = setTimeout(() => {
-                                            setIsDoctorTyping(false);
-                                        }, 3000);
-                                    } else {
-                                        setIsDoctorTyping(false);
-                                    }
-                                    break;
-
-                                default:
-                                    break;
-                            }
-                        } catch (e) {}
-                    },
-                    
-                    onerror(err) {}
-                });
+                refreshIntervalRef.current = setInterval(() => {
+                    fetchMessages();
+                    markAllConsultationMessagesAsRead(id).catch(() => {});
+                }, 3000);
 
             } catch (err) {
                 if (isMounted) navigate('/patient/messages', { replace: true });
@@ -133,6 +123,7 @@ const PatientChatPage = () => {
             ctrl.abort(); 
             clearTimeout(typingTimeoutRef.current);
             clearTimeout(doctorTypingTimeoutRef.current);
+            clearInterval(refreshIntervalRef.current);
         };
     }, [id, navigate]);
 
@@ -325,3 +316,47 @@ const PatientChatPage = () => {
 };
 
 export default PatientChatPage;
+
+async function connectConsultationEvents({ url, token, signal, onEvent }) {
+    if (!url || !token) return;
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'text/event-stream',
+        },
+        signal,
+    });
+
+    if (!response.ok || !response.body) {
+        throw new Error('Unable to connect to consultation events.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (!signal.aborted) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split(/\r?\n\r?\n/);
+        buffer = chunks.pop() || '';
+
+        chunks.forEach((chunk) => {
+            const data = chunk
+                .split(/\r?\n/)
+                .filter((line) => line.startsWith('data:'))
+                .map((line) => line.replace(/^data:\s?/, ''))
+                .join('\n');
+
+            if (!data) return;
+
+            try {
+                onEvent?.(JSON.parse(data));
+            } catch (error) {}
+        });
+    }
+}

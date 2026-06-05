@@ -47,6 +47,8 @@ export default function DoctorMessagesPage() {
     const [closeCaseOpen, setCloseCaseOpen] = useState(false);
     const [deleteChatOpen, setDeleteChatOpen] = useState(false);
     const [error, setError] = useState("");
+    const messagesEndRef = useRef(null);
+    const messagesRef = useRef([]);
 
     const selectedConversation = useMemo(() => {
         const base = consultations.find((conversation) => conversation.id === selectedId);
@@ -71,8 +73,14 @@ export default function DoctorMessagesPage() {
         });
     }, [activeFilter, consultations, searchTerm]);
 
-    const fetchConsultations = useCallback(async () => {
-        setLoadingList(true);
+    const scrollMessagesToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, []);
+
+    const fetchConsultations = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) {
+            setLoadingList(true);
+        }
         setError("");
 
         try {
@@ -89,36 +97,46 @@ export default function DoctorMessagesPage() {
         } catch (error) {
             setError(error.response?.data?.message || error.message || "Failed to fetch consultations.");
         } finally {
-            setLoadingList(false);
+            if (!silent) {
+                setLoadingList(false);
+            }
         }
     }, [dateFilter.endDate, dateFilter.startDate]);
 
-    const fetchSelectedConversation = useCallback(async (consultationId) => {
+    const fetchSelectedConversation = useCallback(async (consultationId, { silent = false } = {}) => {
         if (!consultationId) {
             setSelectedDetail(null);
             setMessages([]);
             return;
         }
 
-        setLoadingMessages(true);
+        if (!silent) {
+            setLoadingMessages(true);
+        }
         setError("");
 
         try {
             const [detail, messageResponse] = await Promise.all([
                 getDoctorConsultationDetail(consultationId),
-                getDoctorConsultationMessages(consultationId, { page: 1, limit: 20 }),
+                getDoctorConsultationMessages(consultationId, { page: 1, limit: 100 }),
             ]);
             const nextMessages = messageResponse.data.map(normalizeMessage);
+            const hasNewMessages = hasMessageListChanged(messagesRef.current, nextMessages);
 
             setSelectedDetail(detail);
             setMessages(nextMessages);
             markAllDoctorConsultationMessagesAsRead(consultationId).catch(() => {});
+            if (hasNewMessages) {
+                window.setTimeout(scrollMessagesToBottom, 80);
+            }
         } catch (error) {
             setError(error.response?.data?.message || error.message || "Failed to fetch consultation messages.");
         } finally {
-            setLoadingMessages(false);
+            if (!silent) {
+                setLoadingMessages(false);
+            }
         }
-    }, []);
+    }, [scrollMessagesToBottom]);
 
     useEffect(() => {
         fetchConsultations();
@@ -127,6 +145,22 @@ export default function DoctorMessagesPage() {
     useEffect(() => {
         fetchSelectedConversation(selectedId);
     }, [fetchSelectedConversation, selectedId]);
+
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
+
+    useEffect(() => {
+        if (!selectedId) return undefined;
+
+        const intervalId = window.setInterval(() => {
+            if (document.hidden) return;
+            fetchConsultations({ silent: true });
+            fetchSelectedConversation(selectedId, { silent: true });
+        }, 3000);
+
+        return () => window.clearInterval(intervalId);
+    }, [fetchConsultations, fetchSelectedConversation, selectedId]);
 
     const selectedIsClosed = String(selectedConversation.status || "").toUpperCase() === "CLOSED";
     const dateFilterActive = Boolean(dateFilter.startDate || dateFilter.endDate);
@@ -353,6 +387,7 @@ export default function DoctorMessagesPage() {
                                     patientName={selectedConversation.patient}
                                 />
                             ))}
+                            <div ref={messagesEndRef} />
                         </div>
                     )}
                 </div>
@@ -382,6 +417,20 @@ export default function DoctorMessagesPage() {
         />
         </>
     );
+}
+
+function hasMessageListChanged(currentMessages, nextMessages) {
+    if (currentMessages.length !== nextMessages.length) return true;
+
+    const currentLast = currentMessages[currentMessages.length - 1];
+    const nextLast = nextMessages[nextMessages.length - 1];
+
+    return getMessageIdentity(currentLast) !== getMessageIdentity(nextLast);
+}
+
+function getMessageIdentity(message) {
+    if (!message) return "";
+    return message.id || `${message.senderRole || ""}-${message.createdAt || ""}-${message.text || ""}`;
 }
 
 function QueueCard({ conversation, active, onClick }) {
