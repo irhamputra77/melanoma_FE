@@ -155,11 +155,6 @@ export default function SystemSettingsDoctorPage() {
             return;
         }
 
-        if (newPassword.length < 6) {
-            setError("New password must be at least 6 characters.");
-            return;
-        }
-
         if (newPassword !== confirmPassword) {
             setError("New password confirmation does not match.");
             return;
@@ -318,7 +313,7 @@ export default function SystemSettingsDoctorPage() {
                                 <div className="mb-5">
                                     <h3 className="text-base font-extrabold text-slate-900">Change Password</h3>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Use at least 6 characters for the new password.
+                                        Backend password policy will be applied when you save.
                                     </p>
                                 </div>
 

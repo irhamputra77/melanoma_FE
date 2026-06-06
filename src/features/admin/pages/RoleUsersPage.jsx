@@ -698,12 +698,12 @@ function validateUser(user, options = {}) {
     const emailError = getEmailValidationError(user.email);
     if (emailError) return emailError;
     if (user.gender && !["male", "female"].includes(String(user.gender).toLowerCase())) return "Gender harus male atau female.";
-    if (options.requirePassword && String(user.password || "").length < 6) return "Password minimal 6 karakter.";
+    if (options.requirePassword && !String(user.password || "").trim()) return "Password wajib diisi.";
     return "";
 }
 
 function validateResetPassword(form) {
-    if (String(form.password || "").length < 6) return "Password baru minimal 6 karakter.";
+    if (!String(form.password || "").trim()) return "Password baru wajib diisi.";
     if (form.password !== form.confirmPassword) return "Konfirmasi password tidak sama.";
     return "";
 }

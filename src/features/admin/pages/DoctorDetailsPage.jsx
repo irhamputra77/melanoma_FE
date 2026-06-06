@@ -921,7 +921,7 @@ function validateDoctor(doctor, options = {}) {
     const emailError = getEmailValidationError(doctor.email);
     if (emailError) return emailError;
     if (doctor.gender && !["male", "female"].includes(String(doctor.gender).toLowerCase())) return "Gender harus male atau female.";
-    if (options.requirePassword && String(doctor.password || "").length < 6) return "Password minimal 6 karakter.";
+    if (options.requirePassword && !String(doctor.password || "").trim()) return "Password wajib diisi.";
     if (options.requireDoctorFields) {
         if (!doctor.clinicId) return "Clinic wajib dipilih.";
         if (!doctor.specialization?.trim()) return "Specialization wajib diisi.";
@@ -933,7 +933,7 @@ function validateDoctor(doctor, options = {}) {
 }
 
 function validateResetPassword(form) {
-    if (String(form.password || "").length < 6) return "Password baru minimal 6 karakter.";
+    if (!String(form.password || "").trim()) return "Password baru wajib diisi.";
     if (form.password !== form.confirmPassword) return "Konfirmasi password tidak sama.";
     return "";
 }

@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
             <p className="mb-10 leading-relaxed text-[#414753]">
                 {resetComplete
                     ? "Your password has been changed successfully. Please login again with your new password."
-                    : "Set a new password with at least 6 characters to secure your MySkin account."}
+                    : "Set a secure new password for your MySkin account."}
             </p>
 
             {resetComplete ? (
@@ -88,11 +88,7 @@ export default function ResetPasswordPage() {
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {error && (
-                        <p className="text-sm font-medium text-red-600">
-                            {error}
-                        </p>
-                    )}
+                    {error && <ErrorMessage message={error} />}
 
                     {!token && (
                         <div className="rounded-2xl bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
@@ -174,17 +170,38 @@ function PasswordField({
     );
 }
 
+function ErrorMessage({ message }) {
+    const messages = splitErrorMessage(message);
+
+    return (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            {messages.length > 1 ? (
+                <ul className="list-disc space-y-1 pl-5">
+                    {messages.map((item) => (
+                        <li key={item}>{item}</li>
+                    ))}
+                </ul>
+            ) : (
+                <p>{messages[0] || message}</p>
+            )}
+        </div>
+    );
+}
+
+function splitErrorMessage(message) {
+    return String(message || "")
+        .split(";")
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
 function validateResetForm(token, form) {
     if (!token) {
         return "Token reset password harus disediakan";
     }
 
     if (!form.password) {
-        return "Password baru minimal 6 karakter";
-    }
-
-    if (form.password.length < 6) {
-        return "Password baru minimal 6 karakter";
+        return "Password baru wajib diisi.";
     }
 
     if (form.password !== form.confirmPassword) {

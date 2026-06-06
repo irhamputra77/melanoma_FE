@@ -794,8 +794,8 @@ function validateUserForm(user, includePassword) {
     if (!["male", "female"].includes(String(user.gender || "").toLowerCase())) {
         return "Gender harus male atau female.";
     }
-    if (includePassword && String(user.password || "").length < 6) {
-        return "Password minimal 6 karakter.";
+    if (includePassword && !String(user.password || "").trim()) {
+        return "Password wajib diisi.";
     }
     if (includePassword && String(user.role || "").toLowerCase() === "doctor") {
         if (!user.specialization?.trim()) return "Specialization wajib diisi untuk doctor.";

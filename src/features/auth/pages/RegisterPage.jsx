@@ -16,6 +16,8 @@ const initialForm = {
     confirmPassword: "",
     agreed: false,
 };
+const minBirthDate = "1900-01-01";
+const maxBirthDate = new Date().toISOString().slice(0, 10);
 
 const initialDoctorProfile = {
     specialization: "",
@@ -61,6 +63,19 @@ export default function RegisterPage() {
         setForm((current) => ({
             ...current,
             [name]: type === "checkbox" ? checked : value,
+        }));
+    };
+
+    const handleBirthDateChange = (event) => {
+        const { value } = event.target;
+
+        if (value && !isNativeBirthDateAllowed(value)) {
+            return;
+        }
+
+        setForm((current) => ({
+            ...current,
+            birthDate: value,
         }));
     };
 
@@ -181,11 +196,7 @@ export default function RegisterPage() {
                 </p>
 
                 <form onSubmit={handleDoctorProfileSubmit} className="space-y-5">
-                    {error && (
-                        <p className="text-sm font-medium text-red-600">
-                            {error}
-                        </p>
-                    )}
+                    {error && <ErrorMessage message={error} />}
 
                     <div>
                         <label className="block text-sm font-medium text-slate-900 mb-2">
@@ -341,11 +352,7 @@ export default function RegisterPage() {
             </div>
 
             <form noValidate onSubmit={handleMainSubmit} className="space-y-4">
-                {error && (
-                    <p className="text-sm font-medium text-red-600">
-                        {error}
-                    </p>
-                )}
+                {error && <ErrorMessage message={error} />}
 
                 <input
                     name="name"
@@ -373,17 +380,12 @@ export default function RegisterPage() {
                 <input
                     name="birthDate"
                     placeholder="Birth Date"
-                    type="text"
+                    title="Birth Date"
+                    type="date"
+                    min={minBirthDate}
+                    max={maxBirthDate}
                     value={form.birthDate}
-                    onChange={handleChange}
-                    onFocus={(event) => {
-                        event.target.type = "date";
-                    }}
-                    onBlur={(event) => {
-                        if (!event.target.value) {
-                            event.target.type = "text";
-                        }
-                    }}
+                    onChange={handleBirthDateChange}
                     className="w-full border-b border-slate-300 py-3 outline-none text-sm"
                 />
                 <select
@@ -455,6 +457,31 @@ function RoleButton({ active, title, description, onClick }) {
     );
 }
 
+function ErrorMessage({ message }) {
+    const messages = splitErrorMessage(message);
+
+    return (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            {messages.length > 1 ? (
+                <ul className="list-disc space-y-1 pl-5">
+                    {messages.map((item) => (
+                        <li key={item}>{item}</li>
+                    ))}
+                </ul>
+            ) : (
+                <p>{messages[0] || message}</p>
+            )}
+        </div>
+    );
+}
+
+function splitErrorMessage(message) {
+    return String(message || "")
+        .split(";")
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
 function validateMainForm(form) {
     const requiredFields = [
         form.name,
@@ -471,8 +498,8 @@ function validateMainForm(form) {
     const emailError = getEmailValidationError(form.email);
     if (emailError) return emailError;
 
-    if (form.password.length < 6) {
-        return "Password minimal 6 karakter.";
+    if (form.birthDate.trim() && !normalizeBirthDateInput(form.birthDate)) {
+        return "Tanggal lahir tidak valid.";
     }
 
     if (form.password !== form.confirmPassword) {
@@ -488,6 +515,7 @@ function validateMainForm(form) {
 
 function buildRegisterPayload(form, doctorProfile) {
     const email = normalizeEmail(form.email);
+    const birthDate = normalizeBirthDateInput(form.birthDate);
 
     if (form.role === "doctor") {
         const payload = new FormData();
@@ -507,7 +535,7 @@ function buildRegisterPayload(form, doctorProfile) {
         }
 
         if (form.phone.trim()) payload.append("phoneNumber", form.phone);
-        if (form.birthDate) payload.append("birthDate", form.birthDate);
+        if (birthDate) payload.append("birthDate", birthDate);
         if (doctorProfile.medicalLicense) payload.append("medicalLicense", doctorProfile.medicalLicense);
 
         return payload;
@@ -525,11 +553,70 @@ function buildRegisterPayload(form, doctorProfile) {
         payload.phone = form.phone;
     }
 
-    if (form.birthDate) {
-        payload.birthDate = form.birthDate;
+    if (birthDate) {
+        payload.birthDate = birthDate;
     }
 
     return payload;
+}
+
+function normalizeBirthDateInput(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+
+    const isoMatch = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    if (isoMatch) {
+        return buildValidDate(isoMatch[1], isoMatch[2], isoMatch[3]);
+    }
+
+    const localMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (localMatch) {
+        return buildValidDate(localMatch[3], localMatch[2], localMatch[1]);
+    }
+
+    const compactMatch = text.match(/^(\d{2})(\d{2})(\d{4})$/);
+    if (compactMatch) {
+        return buildValidDate(compactMatch[3], compactMatch[2], compactMatch[1]);
+    }
+
+    return "";
+}
+
+function isNativeBirthDateAllowed(value) {
+    const normalized = normalizeBirthDateInput(value);
+    return Boolean(normalized && normalized >= minBirthDate && normalized <= maxBirthDate);
+}
+
+function buildValidDate(yearValue, monthValue, dayValue) {
+    const year = Number(yearValue);
+    const month = Number(monthValue);
+    const day = Number(dayValue);
+    const currentYear = new Date().getFullYear();
+
+    if (
+        !Number.isInteger(year) ||
+        !Number.isInteger(month) ||
+        !Number.isInteger(day) ||
+        year < 1900 ||
+        year > currentYear ||
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > 31
+    ) {
+        return "";
+    }
+
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() !== month - 1 ||
+        date.getUTCDate() !== day
+    ) {
+        return "";
+    }
+
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function validateMedicalLicenseFile(file) {
