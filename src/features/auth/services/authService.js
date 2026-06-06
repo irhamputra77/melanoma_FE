@@ -26,7 +26,7 @@ export const getActiveClinics = async () => {
     const response = await api.get(ENDPOINTS.CLINICS.ACTIVE, {
         params: { isActive: true },
     });
-    return response.data?.data?.data ?? [];
+    return unwrapList(response.data);
 };
 
 export const requestPasswordReset = async (email) => {
@@ -43,3 +43,10 @@ export const getCurrentUser = async () => {
     const response = await api.get(ENDPOINTS.AUTH.ME);
     return response.data;
 };
+
+function unwrapList(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+}

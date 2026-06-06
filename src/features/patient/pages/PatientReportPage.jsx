@@ -160,25 +160,28 @@ const PatientReportPage = () => {
     setDownloadingId(reportId);
 
     try {
-      // 1. Ambil data JSON dari backend
       const response = await downloadPatientReport(reportId);
 
-      // 2. Ekstraksi secara aman (mengantisipasi berbagai bentuk JSON dari BE)
-      const pdfPath = response?.pdfUrl || response?.data?.pdfUrl;
+      if (response?.blob) {
+        downloadBlob(response.blob, response.fileName || `Clinical_Report_${reportId}.pdf`);
+        return;
+      }
 
-      if (!pdfPath) {
+      const pdfPath =
+        response?.downloadUrl ||
+        response?.pdfUrl ||
+        response?.url ||
+        response?.data?.downloadUrl ||
+        response?.data?.pdfUrl ||
+        response?.data?.url;
+
+      if (!pdfPath || typeof pdfPath !== 'string') {
         console.error("Respons dari server:", response);
         throw new Error("URL PDF tidak ditemukan dari balasan server.");
       }
 
-      // 3. Susun URL penuh secara dinamis
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3300/api/v1';
-      const baseUrl = apiUrl.split('/api')[0];
-      const fullPdfUrl = `${baseUrl}${pdfPath.startsWith('/') ? '' : '/'}${pdfPath}`;
-
-      // 4. Unduh/Buka file menggunakan elemen <a> agar lolos dari Popup Blocker
       const link = document.createElement('a');
-      link.href = fullPdfUrl;
+      link.href = resolveDownloadUrl(pdfPath);
       link.target = '_blank';
       link.download = `Clinical_Report_${reportId}.pdf`; 
       document.body.appendChild(link);
@@ -353,5 +356,27 @@ const PatientReportPage = () => {
     </div>
   );
 };
+
+function resolveDownloadUrl(path) {
+  if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) {
+    return path;
+  }
+
+  const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3300/api';
+  const baseUrl = apiUrl.split('/api')[0];
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default PatientReportPage;

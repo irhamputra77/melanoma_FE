@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import {
     Building2,
     ChevronLeft,
@@ -66,7 +67,7 @@ export default function DoctorDetailsPage() {
         setError("");
 
         try {
-            const [summaryResult, doctorsResult, clinicsResult] = await Promise.all([
+            const [summaryResult, doctorsResult, clinicsResult] = await Promise.allSettled([
                 getAdminDoctorsSummary(),
                 getAdminDoctors({
                     search: search.trim() || undefined,
@@ -76,15 +77,20 @@ export default function DoctorDetailsPage() {
                 }),
                 getClinics({ page: 1, limit: 100, isActive: "all" }),
             ]);
+            if (doctorsResult.status === "rejected") {
+                throw doctorsResult.reason;
+            }
 
-            const clinicList = parseClinicList(clinicsResult);
+            const clinicList = clinicsResult.status === "fulfilled" ? parseClinicList(clinicsResult.value) : clinics;
             const nextClinicMap = Object.fromEntries(clinicList.map((clinic) => [clinic.clinicId, clinic.name]));
-            const doctorList = (doctorsResult.data || []).map((doctor) => normalizeDoctor(doctor, nextClinicMap));
+            const doctorList = (doctorsResult.value.data || []).map((doctor) => normalizeDoctor(doctor, nextClinicMap));
 
-            setSummary(normalizeSummary(summaryResult));
+            if (summaryResult.status === "fulfilled") {
+                setSummary(normalizeSummary(summaryResult.value));
+            }
             setClinics(clinicList);
             setDoctors(doctorList);
-            setMeta(doctorsResult.meta || { page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: doctorList.length });
+            setMeta(doctorsResult.value.meta || { page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: doctorList.length });
         } catch (err) {
             setError(err.response?.data?.message || "Failed to fetch doctors.");
             setDoctors([]);
@@ -609,8 +615,20 @@ function DoctorEditModal({ mode = "edit", doctor, setDoctor, clinics = [], savin
 
 function DoctorPatientsModal({ doctor, patients, loading, error, onClose }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 backdrop-blur-[6px]">
-            <div className="w-full max-w-[620px] rounded-[28px] bg-white p-7 shadow-2xl shadow-slate-900/20">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 py-8 backdrop-blur-[6px]"
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="max-h-[92vh] w-full max-w-[620px] overflow-y-auto rounded-[28px] bg-white p-7 shadow-2xl shadow-slate-900/20"
+            >
                 <div className="mb-6 flex items-start justify-between gap-5">
                     <div>
                         <h2 className="text-2xl font-extrabold text-slate-950">Doctor Patients</h2>
@@ -651,8 +669,8 @@ function DoctorPatientsModal({ doctor, patients, loading, error, onClose }) {
                         ))}
                     </div>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }
 

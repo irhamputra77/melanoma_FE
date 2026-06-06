@@ -11,6 +11,16 @@ export const ENDPOINTS = {
         SCAN: "/guest/scan",
         SCAN_RESULT: (scanId) => `/guest/scan/${scanId}`
     },
+    CLINICS: {
+        ACTIVE: "/v1/clinics",
+        CREATE: "/v1/clinics",
+        ACTION: (clinicId) => `/v1/clinics/${clinicId}`,
+    },
+    CLINIC_REQUESTS: {
+        LIST: "/v1/clinic-requests",
+        CREATE: "/v1/clinic-requests",
+        ACTION: (id) => `/v1/clinic-requests/${id}`,
+    },
     DOCTOR: {
         DASHBOARD_SUMMARY: "/dashboard/summary",
         ASSIGNED_CASES: "/cases/assigned",

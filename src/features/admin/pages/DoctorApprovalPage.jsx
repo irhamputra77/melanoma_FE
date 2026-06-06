@@ -43,7 +43,7 @@ export default function DoctorApprovalPage() {
         setError("");
 
         try {
-            const [doctorsResult, clinicsResult] = await Promise.all([
+            const [doctorsResult, clinicsResult] = await Promise.allSettled([
                 getAdminDoctors({
                     search: search.trim() || undefined,
                     status: "pending",
@@ -52,13 +52,17 @@ export default function DoctorApprovalPage() {
                 }),
                 getClinics({ page: 1, limit: 100, isActive: "all" }),
             ]);
-            const clinicList = parseClinicList(clinicsResult);
+            if (doctorsResult.status === "rejected") {
+                throw doctorsResult.reason;
+            }
+
+            const clinicList = clinicsResult.status === "fulfilled" ? parseClinicList(clinicsResult.value) : clinics;
             const clinicMap = Object.fromEntries(clinicList.map((clinic) => [clinic.clinicId, clinic.name]));
-            const doctorList = (doctorsResult.data || []).map((doctor) => normalizeDoctor(doctor, clinicMap));
+            const doctorList = (doctorsResult.value.data || []).map((doctor) => normalizeDoctor(doctor, clinicMap));
 
             setClinics(clinicList);
             setDoctors(doctorList);
-            setMeta(doctorsResult.meta || { page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: doctorList.length });
+            setMeta(doctorsResult.value.meta || { page, limit: DEFAULT_ADMIN_PAGE_SIZE, total: doctorList.length });
         } catch (err) {
             setError(err.response?.data?.message || "Failed to fetch pending doctors.");
             setDoctors([]);

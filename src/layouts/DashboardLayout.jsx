@@ -13,6 +13,8 @@ import {
     UsersRound,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { sidebarMenus } from "../constants/sidebarMenus";
 import profileDoctor from "../assets/login_doctor_profile.png";
@@ -185,9 +187,46 @@ export default function DashboardLayout() {
         }
     };
 
+    const handleLogout = () => {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("role");
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        navigate("/auth/login", { replace: true });
+    };
+
+    const navigateWithTransition = (path, options) => {
+        if (location.pathname === path && !options?.replace) return;
+
+        if (document.startViewTransition) {
+            document.startViewTransition(() => {
+                flushSync(() => navigate(path, options));
+            });
+            return;
+        }
+
+        navigate(path, options);
+    };
+
+    const handleNavClick = (event, path) => {
+        if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.shiftKey
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        navigateWithTransition(path);
+    };
+
     return (
         <div className="min-h-screen bg-slate-100 flex">
-            <aside className={`${isAdmin ? "w-64 bg-slate-50 border-r-0 p-4" : "w-64 bg-white border-r border-slate-200 p-6"} flex flex-col`}>
+            <aside className={`${isAdmin ? "w-64 bg-slate-50 border-r-0 p-4" : "w-64 bg-white border-r border-slate-200 p-6"} sticky top-0 h-screen shrink-0 overflow-y-auto flex flex-col`}>
                 <div className={`mb-10 flex items-center gap-3 ${isAdmin ? "px-2 pt-7" : ""}`}>
                     <span className={`${isAdmin ? "flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white" : "hidden"}`}>
                         <Microscope size={23} />
@@ -200,8 +239,9 @@ export default function DashboardLayout() {
                         <NavLink
                             key={menu.path}
                             to={menu.path}
+                            onClick={(event) => handleNavClick(event, menu.path)}
                             className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium ${isActive
+                                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ease-out ${isActive
                                     ? "bg-white text-blue-600"
                                     : "text-slate-600 hover:bg-slate-100"
                                 }`
@@ -217,7 +257,7 @@ export default function DashboardLayout() {
                 </nav>
 
                 <button
-                    onClick={() => navigate("/auth/login")}
+                    onClick={handleLogout}
                     className="flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-semibold"
                 >
                     <LogOut size={18} />
@@ -225,7 +265,7 @@ export default function DashboardLayout() {
                 </button>
             </aside>
 
-            <main className="flex-1">
+            <main className="min-w-0 flex-1">
                 <header className="relative z-40 flex h-[92px] items-center justify-between bg-slate-100 px-8">
                     <div>
                         {!activeMenu?.hideHeaderTitle && (
@@ -251,23 +291,25 @@ export default function DashboardLayout() {
                                 )}
                             </button>
 
-                            {notificationsOpen && (
-                                <NotificationPopover
-                                    notifications={notifications}
-                                    loading={notificationsLoading}
-                                    error={notificationsError}
-                                    unreadCount={unreadCount}
-                                    onMarkAllAsRead={handleMarkAllAsRead}
-                                    onNotificationClick={handleNotificationClick}
-                                />
-                            )}
+                            <AnimatePresence>
+                                {notificationsOpen && (
+                                    <NotificationPopover
+                                        notifications={notifications}
+                                        loading={notificationsLoading}
+                                        error={notificationsError}
+                                        unreadCount={unreadCount}
+                                        onMarkAllAsRead={handleMarkAllAsRead}
+                                        onNotificationClick={handleNotificationClick}
+                                    />
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         <div className="h-9 w-px bg-slate-200" />
 
                         <button
                             type="button"
-                            onClick={() => navigate(role === "admin" ? "/admin/profile" : role === "doctor" ? "/doctor/profile" : `/${role}/settings`)}
+                            onClick={() => navigateWithTransition(role === "admin" ? "/admin/profile" : role === "doctor" ? "/doctor/profile" : `/${role}/settings`)}
                             className="flex items-center gap-4"
                         >
                             <div className="text-right">
@@ -284,7 +326,9 @@ export default function DashboardLayout() {
                 </header>
 
                 <section className="px-8 pb-8">
-                    <Outlet />
+                    <div className="dashboard-page-transition">
+                        <Outlet />
+                    </div>
                 </section>
             </main>
         </div>
@@ -300,7 +344,13 @@ function NotificationPopover({
     onNotificationClick,
 }) {
     return (
-        <div className="absolute right-0 top-14 z-[60] w-[320px] overflow-hidden rounded-[22px] bg-white shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200">
+        <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute right-0 top-14 z-[60] w-[320px] overflow-hidden rounded-[22px] bg-white shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200"
+        >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <h2 className="text-lg font-extrabold text-slate-950">Notifications</h2>
                 {unreadCount > 0 && (
@@ -346,7 +396,7 @@ function NotificationPopover({
             >
                 Mark all as read
             </button>
-        </div>
+        </motion.div>
     );
 }
 

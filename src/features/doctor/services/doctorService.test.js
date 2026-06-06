@@ -46,6 +46,26 @@ describe('doctorService.getCaseHistory', () => {
     });
   });
 
+  it('normalizes nested case history list responses', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          data: [{ caseId: 'case-nested' }],
+          meta: { page: 1, limit: 10, total: 1 },
+        },
+      },
+    });
+
+    const result = await getCaseHistory({ page: 1, limit: 10 });
+
+    expect(result).toEqual({
+      status: 'success',
+      data: [{ caseId: 'case-nested' }],
+      meta: { page: 1, limit: 10, total: 1 },
+    });
+  });
+
   it('throws when the API payload reports an error', async () => {
     api.request.mockResolvedValue({
       data: {
@@ -64,7 +84,7 @@ describe('doctorService.getCaseHistory', () => {
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     api.request.mockResolvedValue({
-      data: new Blob(['pdf'], { type: 'application/pdf' }),
+      data: new Blob(['%PDF-1.4 history'], { type: 'application/pdf' }),
       headers: {
         'content-disposition': 'attachment; filename="history.pdf"',
         'content-type': 'application/pdf',
@@ -106,7 +126,7 @@ describe('doctorService.getCaseHistory', () => {
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     api.request.mockResolvedValue({
-      data: new Blob(['pdf'], { type: 'application/pdf' }),
+      data: new Blob(['%PDF-1.4 case'], { type: 'application/pdf' }),
       headers: {
         'content-disposition': 'attachment; filename="case.pdf"',
       },

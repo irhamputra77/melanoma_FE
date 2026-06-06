@@ -7,6 +7,7 @@ import {
     getRoleFromAuthResponse,
     getTokenFromAuthResponse,
 } from "../utils/authFlow";
+import { setMaintenanceMode } from "../../../utils/maintenanceMode";
 
 export default function GoogleAuthCallbackPage() {
     const navigate = useNavigate();
@@ -17,7 +18,8 @@ export default function GoogleAuthCallbackPage() {
         let isMounted = true;
 
         const finishGoogleLogin = async () => {
-            const errorMessage = searchParams.get("error");
+            const callbackParams = getGoogleCallbackParams(searchParams);
+            const errorMessage = callbackParams.get("error") || callbackParams.get("message");
 
             if (errorMessage) {
                 setError(errorMessage);
@@ -25,9 +27,13 @@ export default function GoogleAuthCallbackPage() {
             }
 
             const payload = {
-                token: searchParams.get("token") || searchParams.get("accessToken"),
-                role: searchParams.get("role"),
-                verificationStatus: searchParams.get("verificationStatus"),
+                token: callbackParams.get("token") ||
+                    callbackParams.get("accessToken") ||
+                    callbackParams.get("access_token") ||
+                    callbackParams.get("jwt"),
+                role: callbackParams.get("role") || callbackParams.get("userRole"),
+                verificationStatus: callbackParams.get("verificationStatus") ||
+                    callbackParams.get("doctorVerificationStatus"),
             };
             const token = getTokenFromAuthResponse(payload);
             const role = getRoleFromAuthResponse(payload);
@@ -39,6 +45,10 @@ export default function GoogleAuthCallbackPage() {
 
             sessionStorage.setItem("token", token);
             sessionStorage.setItem("role", role);
+
+            if (role === "admin") {
+                setMaintenanceMode(false);
+            }
 
             if (role === "doctor") {
                 const verificationStatus = await getDoctorVerificationStatus(payload);
@@ -86,4 +96,26 @@ export default function GoogleAuthCallbackPage() {
             )}
         </div>
     );
+}
+
+function getGoogleCallbackParams(searchParams) {
+    const params = new URLSearchParams(searchParams);
+
+    if (typeof window === "undefined") {
+        return params;
+    }
+
+    const hash = window.location.hash?.replace(/^#/, "");
+    if (!hash) {
+        return params;
+    }
+
+    const hashParams = new URLSearchParams(hash);
+    hashParams.forEach((value, key) => {
+        if (!params.has(key)) {
+            params.set(key, value);
+        }
+    });
+
+    return params;
 }

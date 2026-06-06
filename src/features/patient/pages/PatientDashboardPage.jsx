@@ -7,15 +7,29 @@ import 'react-image-crop/dist/ReactCrop.css';
 import {
   uploadPatientScan,
   analyzePatientScan,
-  sharePatientScan,
   getRecentScans,
-  getAvailableDoctors
+  getAvailableDoctors,
+  submitVerificationRequest
 } from '../services/patientService';
 
 const formatDate = (dateString) => {
   if (!dateString) return new Date().toLocaleDateString();
   const d = new Date(dateString);
   return isNaN(d.getTime()) ? new Date().toLocaleDateString() : d.toLocaleDateString();
+};
+
+const normalizeAvailableDoctor = (doctor = {}) => {
+  const profile = doctor.doctorProfile || doctor.profile || {};
+  const user = doctor.user || {};
+
+  return {
+    ...doctor,
+    id: profile.id || doctor.doctorId || doctor.profileId || doctor.id || user.doctorProfile?.id || "",
+    userId: doctor.userId || doctor.doctorUserId || user.id || "",
+    name: doctor.name || doctor.fullName || user.name || user.fullName || "Doctor",
+    specialty: doctor.specialty || doctor.specialization || profile.specialization || "Dermatologist",
+    avatarUrl: doctor.avatarUrl || doctor.photoUrl || profile.avatarUrl || profile.profilePhotoUrl || user.avatarUrl || "",
+  };
 };
 
 const PatientDashboardPage = () => {
@@ -68,7 +82,9 @@ const PatientDashboardPage = () => {
   const fetchDoctors = async () => {
     try {
       const data = await getAvailableDoctors();
-      const doctorsList = data.data || data || [];
+      const doctorsList = (data.data || data || [])
+        .map(normalizeAvailableDoctor)
+        .filter((doctor) => doctor.id);
       setAvailableDoctors(doctorsList);
       if (doctorsList.length > 0) setSelectedDoctorId(doctorsList[0].id);
     } catch (error) {
@@ -186,7 +202,10 @@ const PatientDashboardPage = () => {
     setErrorMessage('');
 
     try {
-      await sharePatientScan(currentScanId, { doctorUserId: selectedDoctorId });
+      await submitVerificationRequest({
+        scanId: currentScanId,
+        doctorId: selectedDoctorId,
+      });
       setSuccessMessage('Permintaan verifikasi berhasil dikirim ke Dokter.');
       setTimeout(() => {
         setViewState('upload');

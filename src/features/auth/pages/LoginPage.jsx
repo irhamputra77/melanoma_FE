@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 import React, { useState } from "react";
 import { getGoogleLoginUrl, login } from "../services/authService";
-import { isMaintenanceModeEnabled } from "../../../utils/maintenanceMode";
+import { isMaintenanceModeEnabled, setMaintenanceMode } from "../../../utils/maintenanceMode";
 import {
     clearStoredAuth,
     getDoctorVerificationMessage,
@@ -48,6 +48,10 @@ export default function LoginPage() {
 
             if (role) {
                 sessionStorage.setItem("role", role);
+            }
+
+            if (role === "admin") {
+                setMaintenanceMode(false);
             }
 
             if (role !== "admin" && isMaintenanceModeEnabled()) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CircleCheck, Upload } from "lucide-react";
+import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 import profileDoctor from "../../../assets/login_doctor_profile.png";
 import { getEmailValidationError, normalizeEmail } from "../../../utils/emailValidation";
 import { getActiveClinics, register } from "../services/authService";
@@ -37,6 +38,8 @@ export default function RegisterPage() {
     const [clinicFetchError, setClinicFetchError] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const isDoctorProfileStep = form.role === "doctor" && step === "doctorProfile";
 
     useEffect(() => {
@@ -398,21 +401,23 @@ export default function RegisterPage() {
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                 </select>
-                <input
+                <PasswordField
                     name="password"
                     placeholder="Password"
-                    type="password"
                     value={form.password}
+                    visible={showPassword}
                     onChange={handleChange}
-                    className="w-full border-b border-slate-300 py-3 outline-none text-sm"
+                    onToggle={() => setShowPassword((current) => !current)}
+                    autoComplete="new-password"
                 />
-                <input
+                <PasswordField
                     name="confirmPassword"
                     placeholder="Re-enter Password"
-                    type="password"
                     value={form.confirmPassword}
+                    visible={showConfirmPassword}
                     onChange={handleChange}
-                    className="w-full border-b border-slate-300 py-3 outline-none text-sm"
+                    onToggle={() => setShowConfirmPassword((current) => !current)}
+                    autoComplete="new-password"
                 />
 
                 <label className="flex gap-2 text-xs text-slate-500">
@@ -440,6 +445,30 @@ export default function RegisterPage() {
                     Sign In
                 </Link>
             </p>
+        </div>
+    );
+}
+
+function PasswordField({ name, placeholder, value, visible, onChange, onToggle, autoComplete }) {
+    return (
+        <div className="relative">
+            <input
+                name={name}
+                placeholder={placeholder}
+                type={visible ? "text" : "password"}
+                value={value}
+                onChange={onChange}
+                autoComplete={autoComplete}
+                className="w-full border-b border-slate-300 py-3 pr-9 outline-none text-sm"
+            />
+            <button
+                type="button"
+                onClick={onToggle}
+                className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-600"
+                aria-label={visible ? `Hide ${placeholder}` : `Show ${placeholder}`}
+            >
+                {visible ? <AiFillEyeInvisible size={19} /> : <AiFillEye size={19} />}
+            </button>
         </div>
     );
 }

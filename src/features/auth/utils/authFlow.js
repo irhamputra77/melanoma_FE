@@ -15,9 +15,11 @@ export function getTokenFromAuthResponse(payload) {
         payload?.token ||
         payload?.accessToken ||
         payload?.access_token ||
+        payload?.jwt ||
         payload?.data?.token ||
         payload?.data?.accessToken ||
-        payload?.data?.access_token;
+        payload?.data?.access_token ||
+        payload?.data?.jwt;
 
     return typeof token === "string" ? token : "";
 }

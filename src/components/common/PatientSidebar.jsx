@@ -1,9 +1,11 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const PatientSidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
   
   const navItems = [
@@ -17,11 +19,42 @@ const PatientSidebar = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
     navigate('/auth/login', { replace: true });
   };
 
+  const navigateWithTransition = (path) => {
+    if (location.pathname === path) return;
+
+    if (document.startViewTransition) {
+      document.startViewTransition(() => {
+        flushSync(() => navigate(path));
+      });
+      return;
+    }
+
+    navigate(path);
+  };
+
+  const handleNavClick = (event, path) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateWithTransition(path);
+  };
+
   return (
-    <aside className="w-64 bg-[#F8F9FA] h-screen flex flex-col border-r border-gray-200">
+    <aside className="sticky top-0 h-screen w-64 shrink-0 overflow-y-auto bg-[#F8F9FA] flex flex-col border-r border-gray-200">
       <div className="h-20 flex items-center px-8">
         <h1 className="text-blue-600 font-bold text-2xl tracking-tight">MySkin</h1>
       </div>
@@ -31,6 +64,7 @@ const PatientSidebar = () => {
           <NavLink
             key={item.name}
             to={item.path}
+            onClick={(event) => handleNavClick(event, item.path)}
             className={({ isActive }) => 
               `flex items-center px-4 py-3 rounded-xl transition-colors duration-200 font-medium text-sm ${
                 isActive ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'

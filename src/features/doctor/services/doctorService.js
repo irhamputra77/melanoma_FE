@@ -13,7 +13,12 @@ export const getDoctorDashboardSummary = async () => {
 
 export const getAssignedCases = async () => {
     const response = await doctorRequest({ method: "get", url: ENDPOINTS.DOCTOR.ASSIGNED_CASES });
-    return unwrap(response);
+    const payload = unwrap(response);
+
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+
+    return [];
 };
 
 export const getCaseDetails = async (caseId) => {
@@ -74,7 +79,7 @@ export const downloadCaseHistoryPdf = async (params = {}) => {
         responseType: "blob",
     });
 
-    downloadBlobResponse(response, "MySkin_Doctor_Case_History.pdf");
+    await downloadBlobResponse(response, "MySkin_Doctor_Case_History.pdf");
     return response;
 };
 
@@ -87,7 +92,7 @@ export const generateCaseReportPdf = async (caseId) => {
         responseType: "blob",
     });
 
-    downloadBlobResponse(response, `MySkin_Doctor_Case_Report_${caseId}.pdf`);
+    await downloadBlobResponse(response, `MySkin_Doctor_Case_Report_${caseId}.pdf`);
     return response;
 };
 
@@ -114,8 +119,15 @@ function normalizeCaseHistoryResponse(payload, queryParams) {
         throw new Error(payload.message || "Failed to fetch case history.");
     }
 
-    const data = Array.isArray(payload?.data) ? payload.data : [];
-    const meta = payload?.meta || {};
+    const nestedPayload = payload?.data && !Array.isArray(payload.data) ? payload.data : null;
+    const data = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(nestedPayload?.data)
+            ? nestedPayload.data
+            : Array.isArray(payload)
+                ? payload
+                : [];
+    const meta = payload?.meta || nestedPayload?.meta || {};
 
     return {
         status: payload?.status || "success",
@@ -128,11 +140,39 @@ function normalizeCaseHistoryResponse(payload, queryParams) {
     };
 }
 
-function downloadBlobResponse(response, fallbackFileName) {
+async function downloadBlobResponse(response, fallbackFileName) {
     const blob = response.data instanceof Blob
         ? response.data
         : new Blob([response.data], { type: response.headers?.["content-type"] || "application/pdf" });
+    const contentType = response.headers?.["content-type"] || blob.type || "";
     const fileName = getFileNameFromDisposition(response.headers?.["content-disposition"]) || fallbackFileName;
+
+    if (contentType.includes("application/json")) {
+        const payload = await parseJsonBlob(blob);
+        const downloadUrl = getReportDownloadUrl(payload);
+
+        if (downloadUrl) {
+            openDownloadUrl(downloadUrl);
+            return;
+        }
+
+        throw new Error(payload?.message || payload?.error || "Report endpoint returned JSON instead of a PDF file.");
+    }
+
+    const signature = await blob.slice(0, 5).text();
+    if (signature !== "%PDF-") {
+        const text = await blob.text();
+        const payload = parseJsonText(text);
+        const downloadUrl = getReportDownloadUrl(payload);
+
+        if (downloadUrl) {
+            openDownloadUrl(downloadUrl);
+            return;
+        }
+
+        throw new Error(payload?.message || payload?.error || "Downloaded report is not a valid PDF file.");
+    }
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
 
@@ -142,6 +182,44 @@ function downloadBlobResponse(response, fallbackFileName) {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+}
+
+async function parseJsonBlob(blob) {
+    return parseJsonText(await blob.text());
+}
+
+function parseJsonText(text) {
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch {
+        return {};
+    }
+}
+
+function getReportDownloadUrl(payload) {
+    return (
+        payload?.downloadUrl ||
+        payload?.pdfUrl ||
+        payload?.url ||
+        payload?.data?.downloadUrl ||
+        payload?.data?.pdfUrl ||
+        payload?.data?.url
+    );
+}
+
+function openDownloadUrl(path) {
+    if (!path) return;
+    window.open(resolveDownloadUrl(path), "_blank", "noopener,noreferrer");
+}
+
+function resolveDownloadUrl(path) {
+    if (path.startsWith("http") || path.startsWith("blob:") || path.startsWith("data:")) {
+        return path;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3300/api";
+    const baseUrl = apiUrl.split("/api")[0];
+    return `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 function getFileNameFromDisposition(disposition = "") {

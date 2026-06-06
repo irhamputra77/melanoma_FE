@@ -25,6 +25,9 @@ const adminRequest = (config) => api.request({ baseURL: adminBaseURL, ...config 
 const optionalNumber = (value) => (
     value === undefined || value === null || value === "" ? undefined : Number(value)
 );
+const optionalFilter = (value) => (
+    value === undefined || value === null || value === "" || value === "all" ? undefined : value
+);
 
 const unwrapAdminLogList = (response) => {
     const envelope = response.data;
@@ -83,12 +86,12 @@ export const exportReport = async (params = {}) => {
             format: params.format || undefined,
         },
     });
-    return unwrap(response);
+    return normalizeReportExportResponse(unwrap(response));
 };
 
 export const downloadReport = (downloadUrl) => {
     if (!downloadUrl) return;
-    window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    window.open(resolveDownloadUrl(downloadUrl), "_blank", "noopener,noreferrer");
 };
 
 export const getAdminSystemLogs = async (params = {}) => {
@@ -136,8 +139,8 @@ export const getAdminUsers = async (params = {}) => {
         url: "/users",
         params: {
             search: params.search || undefined,
-            role: params.role || undefined,
-            status: params.status || undefined,
+            role: optionalFilter(params.role),
+            status: optionalFilter(params.status),
             page: Number(params.page || 1),
             limit: optionalNumber(params.limit),
             sortBy: params.sortBy || "createdAt",
@@ -187,8 +190,8 @@ export const getAdminDoctors = async (params = {}) => {
         url: "/doctors",
         params: {
             search: params.search || undefined,
-            status: params.status || undefined,
-            clinicId: params.clinicId || undefined,
+            status: optionalFilter(params.status),
+            clinicId: optionalFilter(params.clinicId),
             page: Number(params.page || 1),
             limit: optionalNumber(params.limit),
         },
@@ -286,3 +289,18 @@ export const updateAdminPreferences = async (payload) => {
     const response = await adminRequest({ method: "patch", url: "/settings/preferences", data: payload });
     return unwrap(response);
 };
+
+function normalizeReportExportResponse(payload) {
+    return payload?.data ?? payload;
+}
+
+function resolveDownloadUrl(path) {
+    if (typeof path !== "string") return "";
+    if (path.startsWith("http") || path.startsWith("blob:") || path.startsWith("data:")) {
+        return path;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3300/api";
+    const baseUrl = apiUrl.split("/api")[0];
+    return `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+}

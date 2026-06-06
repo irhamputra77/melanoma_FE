@@ -7,7 +7,13 @@ export function isMaintenanceModeEnabled() {
 
 export function setMaintenanceMode(enabled) {
     if (typeof sessionStorage === "undefined") return;
-    sessionStorage.setItem(MAINTENANCE_MODE_KEY, enabled ? "true" : "false");
+
+    if (enabled) {
+        sessionStorage.setItem(MAINTENANCE_MODE_KEY, "true");
+        return;
+    }
+
+    sessionStorage.removeItem(MAINTENANCE_MODE_KEY);
 }
 
 export function isMaintenanceError(error) {

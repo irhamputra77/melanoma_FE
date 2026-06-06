@@ -1,7 +1,8 @@
 import api from "../../../services/api";
 import { ENDPOINTS } from "../../../services/endpoints";
 
-const patientBaseURL = import.meta.env.VITE_PATIENT_API_BASE_URL || "http://localhost:3000/api/v1/patient";
+const apiBaseURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3300/api";
+const patientBaseURL = import.meta.env.VITE_PATIENT_API_BASE_URL || `${apiBaseURL.replace(/\/$/, "")}/v1/patient`;
 const unwrap = (response) => response.data?.data ?? response.data;
 const patientRequest = (config) => api.request({ baseURL: patientBaseURL, ...config });
 
@@ -75,7 +76,7 @@ export const getScanHistory = async (params) => {
         url: ENDPOINTS.PATIENT.SCAN_HISTORY,
         params: normalizePaginationParams(params)
     });
-    return response.data;
+    return unwrapListResponse(response.data);
 };
 
 export const getPatientScanDetail = async (scanId) => {
@@ -132,9 +133,10 @@ export const downloadPatientReport = async (reportId) => {
     const response = await patientRequest({
         method: "get",
         url: ENDPOINTS.PATIENT.REPORT_DOWNLOAD(reportId),
+        responseType: "blob",
     });
 
-    return unwrap(response);
+    return unwrapDownloadResponse(response);
 };
 
 export const previewPatientReport = async (reportId) => {
@@ -348,3 +350,56 @@ export const getConsultationAiAnalysis = async (consultationId) => {
     });
     return unwrap(response);
 };
+
+function unwrapListResponse(payload) {
+    const nestedPayload = payload?.data && !Array.isArray(payload.data) ? payload.data : null;
+    const data = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(nestedPayload?.data)
+                ? nestedPayload.data
+                : Array.isArray(payload?.reports)
+                    ? payload.reports
+                    : Array.isArray(nestedPayload?.reports)
+                        ? nestedPayload.reports
+                        : [];
+
+    const meta = payload?.meta || payload?.pagination || nestedPayload?.meta || nestedPayload?.pagination || {
+        page: 1,
+        limit: data.length,
+        total: data.length,
+        totalPages: 1,
+    };
+
+    return {
+        data,
+        meta,
+        status: payload?.status,
+    };
+}
+
+async function unwrapDownloadResponse(response) {
+    const contentType = response.headers?.["content-type"] || response.data?.type || "";
+
+    if (response.data instanceof Blob && contentType.includes("application/json")) {
+        const text = await response.data.text();
+        const payload = text ? JSON.parse(text) : {};
+        return payload?.data ?? payload;
+    }
+
+    if (response.data instanceof Blob) {
+        return {
+            blob: response.data,
+            fileName: getFileNameFromDisposition(response.headers?.["content-disposition"]),
+            contentType,
+        };
+    }
+
+    return unwrap(response);
+}
+
+function getFileNameFromDisposition(disposition = "") {
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+    return match ? decodeURIComponent(match[1]) : "";
+}

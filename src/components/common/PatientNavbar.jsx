@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom'; 
 import { 
   getPatientDashboard, 
@@ -140,8 +141,15 @@ const PatientNavbar = () => {
             )}
           </button>
 
+          <AnimatePresence>
           {showNotif && (
-            <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fadeIn">
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+            >
               <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
                 <h3 className="font-bold text-gray-900 text-sm">{t('Notifications')}</h3>
                 {unreadCount > 0 && (
@@ -168,8 +176,9 @@ const PatientNavbar = () => {
                   <div className="p-6 text-center text-sm text-gray-500">Tidak ada notifikasi.</div>
                 )}
               </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
 
         <div 
@@ -201,7 +210,6 @@ const PatientNavbar = () => {
           )}
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }`}} />
     </header>
   );
 };
