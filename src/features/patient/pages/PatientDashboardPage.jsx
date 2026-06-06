@@ -4,12 +4,12 @@ import RecentScanCard from '../components/RecentScanCard';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
-import { 
-  uploadPatientScan, 
-  analyzePatientScan, 
-  sharePatientScan, 
+import {
+  uploadPatientScan,
+  analyzePatientScan,
+  sharePatientScan,
   getRecentScans,
-  getAvailableDoctors 
+  getAvailableDoctors
 } from '../services/patientService';
 
 const formatDate = (dateString) => {
@@ -19,10 +19,10 @@ const formatDate = (dateString) => {
 };
 
 const PatientDashboardPage = () => {
-  const [viewState, setViewState] = useState('upload'); 
+  const [viewState, setViewState] = useState('upload');
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  
+
   const [bodySite, setBodySite] = useState('');
   const [complaint, setComplaint] = useState('');
 
@@ -30,16 +30,16 @@ const PatientDashboardPage = () => {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
   const [availableDoctors, setAvailableDoctors] = useState([]);
-  
+
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
-  
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  
+
   // STATE BARU: Untuk fitur crop (FE Only)
   const [isCropping, setIsCropping] = useState(false);
   const [crop, setCrop] = useState({ unit: '%', width: 80, height: 80, x: 10, y: 10 });
@@ -113,37 +113,37 @@ const PatientDashboardPage = () => {
 
     const image = imgRef.current;
     const canvas = document.createElement('canvas');
-    
+
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
-    
+
     canvas.width = completedCrop.width * scaleX;
     canvas.height = completedCrop.height * scaleY;
     const ctx = canvas.getContext('2d');
 
     ctx.drawImage(
-        image,
-        completedCrop.x * scaleX,
-        completedCrop.y * scaleY,
-        completedCrop.width * scaleX,
-        completedCrop.height * scaleY,
-        0,
-        0,
-        completedCrop.width * scaleX,
-        completedCrop.height * scaleY
+      image,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY
     );
 
     canvas.toBlob((blob) => {
-        if (!blob) return;
-        // Generate nama file unik berdasarkan timestamp
-        const timestamp = new Date().getTime();
-        const croppedFile = new File([blob], `cropped_image_${timestamp}.jpeg`, { type: "image/jpeg" });
-        const croppedUrl = URL.createObjectURL(blob);
-        
-        if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); // Bersihkan preview lama
-        setImagePreviewUrl(croppedUrl);
-        setSelectedFile(croppedFile);
-        setIsCropping(false); // Keluar dari mode crop
+      if (!blob) return;
+      // Generate nama file unik berdasarkan timestamp
+      const timestamp = new Date().getTime();
+      const croppedFile = new File([blob], `cropped_image_${timestamp}.jpeg`, { type: "image/jpeg" });
+      const croppedUrl = URL.createObjectURL(blob);
+
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); // Bersihkan preview lama
+      setImagePreviewUrl(croppedUrl);
+      setSelectedFile(croppedFile);
+      setIsCropping(false); // Keluar dari mode crop
     }, 'image/jpeg');
   };
 
@@ -168,7 +168,7 @@ const PatientDashboardPage = () => {
 
       const rawResultData = await analyzePatientScan(scanId);
       const resultData = rawResultData?.analysis || rawResultData?.data || rawResultData;
-      
+
       setAnalysisResult(resultData);
       setViewState('result');
       fetchRecentScans();
@@ -222,13 +222,12 @@ const PatientDashboardPage = () => {
           {successMessage && <p className="mb-4 text-sm text-green-600 bg-green-50 p-3 rounded-lg font-medium">{successMessage}</p>}
 
           {/* PERBAIKAN: Container dinamis menyesuaikan mode crop */}
-          <div className={`relative rounded-2xl bg-gray-50 flex flex-col items-center justify-center mb-4 ${
-            viewState === 'upload' 
-              ? 'border-2 border-dashed border-gray-200 h-72 overflow-hidden' 
+          <div className={`relative rounded-2xl bg-gray-50 flex flex-col items-center justify-center mb-4 ${viewState === 'upload'
+              ? 'border-2 border-dashed border-gray-200 h-72 overflow-hidden'
               : isCropping
                 ? 'h-auto min-h-[300px]' // Auto height saat crop, jangan overflow-hidden
                 : 'h-[300px] overflow-hidden' // Fixed height saat preview normal/result
-          }`}>
+            }`}>
             {viewState === 'upload' && (
               <div className="text-center cursor-pointer w-full h-full flex flex-col items-center justify-center" onClick={() => fileInputRef.current.click()}>
                 <svg className="w-12 h-12 text-blue-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
@@ -244,18 +243,18 @@ const PatientDashboardPage = () => {
                 {!isCropping ? (
                   // Normal Preview / Result dengan tombol aksi melayang
                   <>
-                    <img 
-                      src={imagePreviewUrl} 
-                      alt="Preview" 
-                      className="w-full h-full object-contain bg-black" 
+                    <img
+                      src={imagePreviewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-contain bg-black"
                     />
                     {/* Tombol Aksi Melayang (Hanya muncul di view preview, bukan result) */}
                     {viewState === 'preview' && (
                       <div className="absolute top-4 right-4 flex space-x-2 z-10">
                         {/* Tombol Crop (Edit) */}
-                        <button 
-                          onClick={() => setIsCropping(true)} 
-                          className="bg-white/90 backdrop-blur p-2.5 rounded-lg text-blue-600 hover:bg-white shadow-sm transition" 
+                        <button
+                          onClick={() => setIsCropping(true)}
+                          className="bg-white/90 backdrop-blur p-2.5 rounded-lg text-blue-600 hover:bg-white shadow-sm transition"
                           title="Potong Gambar"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,8 +262,8 @@ const PatientDashboardPage = () => {
                           </svg>
                         </button>
                         {/* Tombol Delete */}
-                        <button 
-                          onClick={handleDeleteImage} 
+                        <button
+                          onClick={handleDeleteImage}
                           className="bg-white/90 backdrop-blur p-2.5 rounded-lg text-red-500 hover:bg-white shadow-sm transition"
                           title="Hapus Gambar"
                         >
@@ -277,31 +276,31 @@ const PatientDashboardPage = () => {
                   // Antarmuka Pemotongan (Crop UI) - FE Only (Desain persis Guest)
                   <div className="flex flex-col items-center w-full bg-gray-900 p-6 rounded-2xl">
                     <ReactCrop
-                        crop={crop}
-                        onChange={(c) => setCrop(c)}
-                        onComplete={(c) => setCompletedCrop(c)}
-                        aspect={undefined} // Bebas crop
+                      crop={crop}
+                      onChange={(c) => setCrop(c)}
+                      onComplete={(c) => setCompletedCrop(c)}
+                      aspect={undefined} // Bebas crop
                     >
-                        <img 
-                            ref={imgRef} 
-                            src={imagePreviewUrl} 
-                            alt="Crop Area" 
-                            className="max-h-[500px] w-auto object-contain"
-                        />
+                      <img
+                        ref={imgRef}
+                        src={imagePreviewUrl}
+                        alt="Crop Area"
+                        className="max-h-[500px] w-auto object-contain"
+                      />
                     </ReactCrop>
                     <div className="flex space-x-4 mt-6">
-                        <button 
-                          onClick={() => setIsCropping(false)} 
-                          className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition font-medium text-sm"
-                        >
-                            Batal
-                        </button>
-                        <button 
-                          onClick={handleSaveCrop} 
-                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
-                        >
-                            Simpan Potongan
-                        </button>
+                      <button
+                        onClick={() => setIsCropping(false)}
+                        className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition font-medium text-sm"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        onClick={handleSaveCrop}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                      >
+                        Simpan Potongan
+                      </button>
                     </div>
                   </div>
                 )}
@@ -347,18 +346,18 @@ const PatientDashboardPage = () => {
             {isLoadingHistory ? (
               <div className="text-center py-6 text-sm text-gray-500">Memuat riwayat...</div>
             ) : recentScans.length > 0 ? (
-              recentScans.map((scan) => (
-                <RecentScanCard 
-                  key={scan.id} 
-                  id={scan.id} 
-                  scanId={`#${scan.scanId || scan.id.substring(0, 6).toUpperCase()}`} 
-                  date={formatDate(scan.createdAt)} 
-                  title={scan.aiPrediction || scan.classification || "Skin Analysis"} 
-                  status={scan.statusLabel || scan.status} 
-                  isVerified={scan.status === 'verified'} 
-                  image={scan.imageUrl} 
-                />
-              ))
+              recentScans.map((scan) => {
+                return (
+                  <RecentScanCard
+                    key={scan.id}
+                    id={scan.id}
+                    scanId={`#${scan.scanId || scan.id.substring(0, 6).toUpperCase()}`}
+                    date={formatDate(scan.createdAt || scan.uploadedAt)}
+                    title={scan.aiPrediction || scan.classification || "Skin Analysis"}
+                    image={scan.imageUrl}
+                  />
+                );
+              })
             ) : (
               <div className="text-center py-6 text-sm text-gray-500 bg-white rounded-2xl border border-gray-100">Belum ada riwayat deteksi.</div>
             )}
@@ -435,7 +434,7 @@ const PatientDashboardPage = () => {
           </div>
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{__html: `@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }`}} />
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }` }} />
     </div>
   );
 };

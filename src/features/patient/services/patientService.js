@@ -7,13 +7,24 @@ const patientRequest = (config) => api.request({ baseURL: patientBaseURL, ...con
 
 // UTILS
 function normalizePaginationParams(params = {}) {
-    const queryParams = {};
+    const queryParams = { ...params };
+
     const page = Number(params.page || 1);
     const limit = Number(params.limit || 10);
 
     queryParams.page = Number.isFinite(page) && page > 0 ? page : 1;
     queryParams.limit = Number.isFinite(limit) && limit > 0 ? limit : 10;
-    
+
+    Object.keys(queryParams).forEach((key) => {
+        if (
+            queryParams[key] === "" ||
+            queryParams[key] === null ||
+            queryParams[key] === undefined
+        ) {
+            delete queryParams[key];
+        }
+    });
+
     return queryParams;
 }
 
@@ -93,30 +104,45 @@ export const sharePatientScan = async (scanId, payload) => {
 
 // REPORTS
 export const getPatientReports = async (params) => {
-    const response = await patientRequest({ 
-        method: "get", 
+    const response = await patientRequest({
+        method: "get",
         url: ENDPOINTS.PATIENT.REPORTS,
-        params: normalizePaginationParams(params)
+        params: normalizePaginationParams(params),
     });
+
     return response.data;
 };
 
 export const getPatientReportDetail = async (reportId) => {
-    const response = await patientRequest({ method: "get", url: ENDPOINTS.PATIENT.REPORT_DETAIL(reportId) });
+    const response = await patientRequest({
+        method: "get",
+        url: ENDPOINTS.PATIENT.REPORT_DETAIL(reportId),
+    });
+
     return unwrap(response);
 };
 
+/**
+ * Dipakai untuk mengambil data report yang kemungkinan berisi pdfUrl.
+ * Catatan:
+ * - Kalau BE endpoint /reports/:id/download masih return JSON { pdfUrl }, function ini aman.
+ * - Kalau endpoint download return error "PDF belum digenerate", page akan fallback ke detail report.
+ */
 export const downloadPatientReport = async (reportId) => {
-    const response = await patientRequest({ 
-        method: "get", 
+    const response = await patientRequest({
+        method: "get",
         url: ENDPOINTS.PATIENT.REPORT_DOWNLOAD(reportId),
-        responseType: "blob"
     });
-    return response.data; 
+
+    return unwrap(response);
 };
 
 export const previewPatientReport = async (reportId) => {
-    const response = await patientRequest({ method: "get", url: ENDPOINTS.PATIENT.REPORT_PREVIEW(reportId) });
+    const response = await patientRequest({
+        method: "get",
+        url: ENDPOINTS.PATIENT.REPORT_PREVIEW(reportId),
+    });
+
     return unwrap(response);
 };
 
