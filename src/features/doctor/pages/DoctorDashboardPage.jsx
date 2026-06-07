@@ -9,6 +9,7 @@ import {
     getDoctorDashboardSummary,
     rejectCase,
     savePhysicianObservation,
+    uploadCaseAnnotation,
 } from "../services/doctorService";
 
 export default function DoctorDashboardPage() {
@@ -100,6 +101,25 @@ export default function DoctorDashboardPage() {
         }
     };
 
+    const handleSaveAnnotation = async (file) => {
+        if (!caseDetails?.caseId || !file) return;
+
+        setActionLoading("annotation");
+        setError("");
+
+        try {
+            await uploadCaseAnnotation(caseDetails.caseId, file);
+            const refreshedCase = await getCaseDetails(caseDetails.caseId);
+            setCaseDetails(refreshedCase);
+            setObservation(refreshedCase?.physicianObservation || observation);
+        } catch (error) {
+            setError(error.response?.data?.message || error.message || "Failed to save annotation.");
+            throw error;
+        } finally {
+            setActionLoading("");
+        }
+    };
+
     const handleApprove = async () => {
         if (!caseDetails?.caseId) return;
 
@@ -182,6 +202,7 @@ export default function DoctorDashboardPage() {
                         observation={observation}
                         onObservationChange={setObservation}
                         onSaveObservation={handleSaveObservation}
+                        onSaveAnnotation={handleSaveAnnotation}
                         onApprove={handleApprove}
                         onReject={handleReject}
                         actionLoading={actionLoading}

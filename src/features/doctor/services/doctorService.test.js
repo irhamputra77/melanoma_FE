@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from '../../../services/api';
-import { downloadCaseHistoryPdf, generateCaseReportPdf, getCaseHistory } from './doctorService';
+import {
+  downloadCaseHistoryPdf,
+  generateCaseReportPdf,
+  getCaseHistory,
+  uploadCaseAnnotation,
+} from './doctorService';
 
 vi.mock('../../../services/api', () => ({
   default: {
@@ -145,5 +150,31 @@ describe('doctorService.getCaseHistory', () => {
     remove.mockRestore();
     createObjectURL.mockRestore();
     revokeObjectURL.mockRestore();
+  });
+
+  it('uploads doctor annotation image as multipart form data', async () => {
+    const file = new File(['annotation'], 'annotation.png', { type: 'image/png' });
+
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          annotatedImageUrl: '/uploads/annotations/annotation.png',
+        },
+      },
+    });
+
+    const result = await uploadCaseAnnotation('case-1', file);
+    const request = api.request.mock.calls[0][0];
+
+    expect(request).toEqual(expect.objectContaining({
+      method: 'post',
+      url: '/cases/case-1/annotation',
+    }));
+    expect(request.data).toBeInstanceOf(FormData);
+    expect(request.data.get('annotationImage')).toBe(file);
+    expect(result).toEqual({
+      annotatedImageUrl: '/uploads/annotations/annotation.png',
+    });
   });
 });

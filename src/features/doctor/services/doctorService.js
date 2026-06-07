@@ -26,6 +26,22 @@ export const getCaseDetails = async (caseId) => {
     return unwrap(response);
 };
 
+export const uploadCaseAnnotation = async (caseId, annotationImage) => {
+    if (!caseId) throw new Error("caseId is required.");
+    if (!annotationImage) throw new Error("annotationImage is required.");
+
+    const payload = new FormData();
+    payload.append("annotationImage", annotationImage);
+
+    const response = await doctorRequest({
+        method: "post",
+        url: ENDPOINTS.DOCTOR.CASE_ANNOTATION(caseId),
+        data: payload,
+    });
+
+    return unwrap(response);
+};
+
 export const savePhysicianObservation = async (caseId, physicianObservation) => {
     const response = await doctorRequest({
         method: "post",

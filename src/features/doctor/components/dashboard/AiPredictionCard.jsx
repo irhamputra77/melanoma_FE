@@ -1,9 +1,13 @@
 import { BrainCircuit } from "lucide-react";
 import PredictionBar from "./PredictionBar";
+import { toAssetUrl } from "../../../../utils/assets";
 
 export default function AiPredictionCard({ aiPrediction }) {
-    const predictions = aiPrediction?.predictions || [];
+    const predictions = normalizePredictions(aiPrediction);
     const [primary, ...secondary] = predictions;
+    const confidenceLabel = aiPrediction
+        ? formatConfidence(aiPrediction?.confidence ?? primary?.percentage)
+        : "HIGH CONFIDENCE";
 
     return (
         <div className="bg-[#f4f8fd] border border-blue-100 rounded-[28px] p-7">
@@ -19,9 +23,22 @@ export default function AiPredictionCard({ aiPrediction }) {
                 </div>
 
                 <span className="whitespace-nowrap rounded-full bg-blue-600 px-4 py-1.5 text-[10px] font-extrabold leading-none text-white">
-                    {aiPrediction?.confidence || "HIGH CONFIDENCE"}
+                    {confidenceLabel}
                 </span>
             </div>
+
+            {aiPrediction?.gradcamUrl && (
+                <div className="mb-6 overflow-hidden rounded-2xl border border-blue-100 bg-white">
+                    <img
+                        src={toAssetUrl(aiPrediction.gradcamUrl)}
+                        alt="Grad-CAM heatmap"
+                        className="h-40 w-full object-cover"
+                    />
+                    <div className="px-4 py-3 text-xs font-bold text-slate-500">
+                        Grad-CAM heatmap reference
+                    </div>
+                </div>
+            )}
 
             <PredictionBar
                 label={primary?.label || "Melanocytic Nevus"}
@@ -47,4 +64,29 @@ export default function AiPredictionCard({ aiPrediction }) {
             )}
         </div>
     );
+}
+
+function normalizePredictions(aiPrediction) {
+    if (Array.isArray(aiPrediction?.predictions) && aiPrediction.predictions.length) {
+        return aiPrediction.predictions;
+    }
+
+    const label = aiPrediction?.prediction || "Melanocytic Nevus";
+    const confidence = Number(aiPrediction?.confidence);
+
+    return [
+        {
+            label,
+            percentage: Number.isFinite(confidence) ? Math.round(confidence * 100) : 0,
+        },
+    ];
+}
+
+function formatConfidence(value) {
+    if (typeof value === "string") return value;
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return "HIGH CONFIDENCE";
+
+    return `${numericValue <= 1 ? Math.round(numericValue * 100) : Math.round(numericValue)}% CONFIDENCE`;
 }

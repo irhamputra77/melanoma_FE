@@ -25,6 +25,7 @@ export const ENDPOINTS = {
         DASHBOARD_SUMMARY: "/dashboard/summary",
         ASSIGNED_CASES: "/cases/assigned",
         CASE_DETAIL: (caseId) => `/cases/${caseId}`,
+        CASE_ANNOTATION: (caseId) => `/cases/${caseId}/annotation`,
         CASE_OBSERVATION: (caseId) => `/cases/${caseId}/observation`,
         CASE_APPROVE: (caseId) => `/cases/${caseId}/approve`,
         CASE_REJECT: (caseId) => `/cases/${caseId}/reject`,

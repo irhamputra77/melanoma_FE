@@ -4,6 +4,8 @@ import AiPredictionCard from "./AiPredictionCard";
 import PatientNotesCard from "./PatientNotesCard";
 import PhysicianObservationBox from "./PhysicianObservationBox";
 import CaseActionButtons from "./CaseActionButtons";
+import GradcamAnnotationModal from "./GradcamAnnotationModal";
+import { useState } from "react";
 
 export default function CaseExaminationPanel({
     caseDetails,
@@ -13,8 +15,11 @@ export default function CaseExaminationPanel({
     onSaveObservation,
     onApprove,
     onReject,
+    onSaveAnnotation,
     actionLoading = "",
 }) {
+    const [annotationOpen, setAnnotationOpen] = useState(false);
+
     if (loading) {
         return (
             <div className="bg-white rounded-[32px] p-10 text-center text-sm font-semibold text-slate-500">
@@ -59,7 +64,11 @@ export default function CaseExaminationPanel({
 
             <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8">
                 <div>
-                    <ClinicalImageCard imageUrl={caseDetails.clinicalImage?.imageUrl} />
+                    <ClinicalImageCard
+                        clinicalImage={caseDetails.clinicalImage}
+                        gradcamUrl={caseDetails.aiPrediction?.gradcamUrl}
+                        onOpenAnnotation={() => setAnnotationOpen(true)}
+                    />
                     <ClinicalImageMeta clinicalImage={caseDetails.clinicalImage} />
                 </div>
 
@@ -82,6 +91,17 @@ export default function CaseExaminationPanel({
                 onApprove={onApprove}
                 onReject={onReject}
                 loading={actionLoading}
+            />
+
+            <GradcamAnnotationModal
+                open={annotationOpen}
+                caseDetails={caseDetails}
+                saving={actionLoading === "annotation"}
+                onClose={() => setAnnotationOpen(false)}
+                onSave={async (file) => {
+                    await onSaveAnnotation?.(file);
+                    setAnnotationOpen(false);
+                }}
             />
         </div>
     );

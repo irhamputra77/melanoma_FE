@@ -1,20 +1,50 @@
+import { ImagePlus, PenLine } from "lucide-react";
 import { toAssetUrl } from "../../../../utils/assets";
 
-export default function ClinicalImageCard({ imageUrl }) {
+export default function ClinicalImageCard({ clinicalImage, gradcamUrl, onOpenAnnotation }) {
+    const imageUrl = clinicalImage?.annotatedImageUrl || clinicalImage?.imageUrl;
+    const hasAnnotation = Boolean(clinicalImage?.annotatedImageUrl);
+    const hasGradcam = Boolean(gradcamUrl);
+    const canAnnotate = Boolean(clinicalImage?.imageUrl);
+
     if (imageUrl) {
         return (
-            <div className="h-[266px] w-[352px] rounded-2xl bg-black overflow-hidden flex items-center justify-center relative">
+            <div className="relative h-[266px] w-full max-w-[352px] overflow-hidden rounded-2xl bg-black">
                 <img
                     src={toAssetUrl(imageUrl)}
                     alt="Clinical lesion"
                     className="h-full w-full object-cover"
                 />
+
+                {hasGradcam && !hasAnnotation && (
+                    <img
+                        src={toAssetUrl(gradcamUrl)}
+                        alt="Grad-CAM overlay"
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45 mix-blend-screen"
+                    />
+                )}
+
+                <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-extrabold text-slate-800 shadow-sm">
+                        {hasAnnotation ? "DOCTOR ANNOTATION" : hasGradcam ? "GRAD-CAM" : "CLINICAL IMAGE"}
+                    </span>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={onOpenAnnotation}
+                    disabled={!canAnnotate}
+                    className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-xs font-extrabold text-white shadow-lg shadow-blue-950/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                >
+                    <PenLine size={16} />
+                    Edit Annotation
+                </button>
             </div>
         );
     }
 
     return (
-        <div className="h-[266px] w-[352px] rounded-2xl bg-black overflow-hidden flex items-center justify-center relative">
+        <div className="relative flex h-[266px] w-full max-w-[352px] items-center justify-center overflow-hidden rounded-2xl bg-black">
             <div
                 className="absolute w-[330px] h-[330px] rounded-full opacity-50"
                 style={{
@@ -59,6 +89,16 @@ export default function ClinicalImageCard({ imageUrl }) {
                     }}
                 />
             </div>
+
+            <button
+                type="button"
+                onClick={onOpenAnnotation}
+                disabled
+                className="absolute bottom-3 right-3 inline-flex cursor-not-allowed items-center gap-2 rounded-2xl bg-blue-300 px-4 py-3 text-xs font-extrabold text-white shadow-lg shadow-blue-950/20"
+            >
+                <ImagePlus size={16} />
+                Add Annotation
+            </button>
         </div>
     );
 }
