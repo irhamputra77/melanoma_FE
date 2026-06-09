@@ -39,7 +39,14 @@ export const uploadCaseAnnotation = async (caseId, annotationImage) => {
         data: payload,
     });
 
-    return unwrap(response);
+    const payloadData = response.data || {};
+    const data = payloadData.data || {};
+
+    return {
+        status: payloadData.status || "success",
+        message: payloadData.message || data.message || "",
+        annotatedImageUrl: data.annotatedImageUrl || payloadData.annotatedImageUrl || "",
+    };
 };
 
 export const savePhysicianObservation = async (caseId, physicianObservation) => {

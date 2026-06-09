@@ -108,7 +108,19 @@ export default function DoctorDashboardPage() {
         setError("");
 
         try {
-            await uploadCaseAnnotation(caseDetails.caseId, file);
+            const result = await uploadCaseAnnotation(caseDetails.caseId, file);
+
+            if (result?.annotatedImageUrl) {
+                setCaseDetails((current) => ({
+                    ...current,
+                    clinicalImage: {
+                        ...(current?.clinicalImage || {}),
+                        annotatedImageUrl: result.annotatedImageUrl,
+                    },
+                }));
+                return;
+            }
+
             const refreshedCase = await getCaseDetails(caseDetails.caseId);
             setCaseDetails(refreshedCase);
             setObservation(refreshedCase?.physicianObservation || observation);

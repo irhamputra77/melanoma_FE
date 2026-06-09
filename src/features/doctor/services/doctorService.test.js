@@ -174,7 +174,28 @@ describe('doctorService.getCaseHistory', () => {
     expect(request.data).toBeInstanceOf(FormData);
     expect(request.data.get('annotationImage')).toBe(file);
     expect(result).toEqual({
+      status: 'success',
+      message: '',
       annotatedImageUrl: '/uploads/annotations/annotation.png',
+    });
+  });
+
+  it('keeps annotation upload compatible with status and message only responses', async () => {
+    const file = new File(['annotation'], 'annotation.png', { type: 'image/png' });
+
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        message: 'Coretan dokter berhasil disimpan pada data Scan',
+      },
+    });
+
+    const result = await uploadCaseAnnotation('case-1', file);
+
+    expect(result).toEqual({
+      status: 'success',
+      message: 'Coretan dokter berhasil disimpan pada data Scan',
+      annotatedImageUrl: '',
     });
   });
 });
