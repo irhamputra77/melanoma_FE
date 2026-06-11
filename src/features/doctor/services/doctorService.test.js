@@ -3,6 +3,8 @@ import api from '../../../services/api';
 import {
   downloadCaseHistoryPdf,
   generateCaseReportPdf,
+  getAssignedCases,
+  getCaseDetails,
   getCaseHistory,
   uploadCaseAnnotation,
 } from './doctorService';
@@ -71,6 +73,33 @@ describe('doctorService.getCaseHistory', () => {
     });
   });
 
+  it('normalizes clinical, Grad-CAM, and edited annotation image URLs in case history', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            caseId: 'case-images',
+            scan: {
+              imageUrl: '/uploads/scans/case-images.jpg',
+              heatmapUrl: '/uploads/gradcam/case-images.png',
+              annotationImageUrl: '/uploads/annotations/case-images.png',
+            },
+          },
+        ],
+        meta: { page: 1, limit: 10, total: 1 },
+      },
+    });
+
+    const result = await getCaseHistory({ page: 1, limit: 10 });
+
+    expect(result.data[0]).toEqual(expect.objectContaining({
+      clinicalImageUrl: '/uploads/scans/case-images.jpg',
+      gradcamUrl: '/uploads/gradcam/case-images.png',
+      annotatedImageUrl: '/uploads/annotations/case-images.png',
+    }));
+  });
+
   it('throws when the API payload reports an error', async () => {
     api.request.mockResolvedValue({
       data: {
@@ -80,6 +109,151 @@ describe('doctorService.getCaseHistory', () => {
     });
 
     await expect(getCaseHistory({})).rejects.toThrow('History unavailable');
+  });
+
+  it('normalizes assigned verification request cases for the doctor dashboard', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            id: 'vr-1',
+            scanId: 'SCN-1780900819998',
+            status: 'pending',
+            createdAt: '2026-06-09T10:00:00.000Z',
+            patient: {
+              name: 'Emma Wilson',
+              avatarUrl: '/uploads/patients/emma.png',
+            },
+            scan: {
+              imageUrl: '/uploads/scans/scan.png',
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await getAssignedCases();
+
+    expect(api.request).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'get',
+      url: '/cases/assigned',
+    }));
+    expect(result).toEqual([
+      expect.objectContaining({
+        caseId: 'SCN-1780900819998',
+        detailCaseId: 'SCN-1780900819998',
+        requestId: 'vr-1',
+        scanId: 'SCN-1780900819998',
+        patientName: 'Emma Wilson',
+        avatarUrl: '/uploads/patients/emma.png',
+        status: 'pending_review',
+        receivedAt: '2026-06-09T10:00:00.000Z',
+      }),
+    ]);
+  });
+
+  it('keeps request-only assigned cases openable through the request id fallback', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            id: 'VER-1781063819348',
+            status: 'pending',
+            patientName: 'Sarah Johnson',
+            createdAt: '2026-06-09T10:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    const result = await getAssignedCases();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        caseId: 'VER-1781063819348',
+        requestId: 'VER-1781063819348',
+        detailCaseId: 'VER-1781063819348',
+        patientName: 'Sarah Johnson',
+        status: 'pending_review',
+      }),
+    ]);
+  });
+
+  it('prioritizes detailCaseId over requestId for assigned verification request detail links', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            id: 'verification-request-db-id',
+            requestId: 'VER-1781063819348',
+            caseId: 'SCN-1780900819998',
+            scanId: 'SCN-1780900819998',
+            detailCaseId: 'SCN-1780900819998',
+            actionCaseId: 'SCN-1780900819998',
+            scanImageUrl: '/uploads/scans/scan.png',
+            gradcamImageUrl: '/uploads/gradcam/scan.png',
+            editedGradcamImageUrl: '/uploads/annotations/scan.png',
+            patientName: 'Sarah Johnson',
+            status: 'pending',
+            receivedAt: '2026-06-10T10:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    const result = await getAssignedCases();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 'verification-request-db-id',
+        requestId: 'VER-1781063819348',
+        caseId: 'SCN-1780900819998',
+        scanId: 'SCN-1780900819998',
+        detailCaseId: 'SCN-1780900819998',
+        actionCaseId: 'SCN-1780900819998',
+        clinicalImageUrl: '/uploads/scans/scan.png',
+        gradcamUrl: '/uploads/gradcam/scan.png',
+        annotatedImageUrl: '/uploads/annotations/scan.png',
+        patientName: 'Sarah Johnson',
+        status: 'pending_review',
+      }),
+    ]);
+  });
+
+  it('normalizes doctor case image fields for the dashboard', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: {
+          caseId: 'case-1',
+          gradcamImageUrl: '/api/uploads/gradcam-case-1.png',
+          editedGradcamImageUrl: '/uploads/annotations/annotation-case-1.png',
+          scan: {
+            imageUrl: '/api/uploads/scan-case-1.jpg',
+          },
+          analysis: {
+            prediction: 'Benign',
+          },
+        },
+      },
+    });
+
+    const result = await getCaseDetails('case-1');
+
+    expect(api.request).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'get',
+      url: '/cases/case-1',
+    }));
+    expect(result.clinicalImage).toEqual(expect.objectContaining({
+      imageUrl: '/api/uploads/scan-case-1.jpg',
+      annotatedImageUrl: '/uploads/annotations/annotation-case-1.png',
+    }));
+    expect(result.aiPrediction).toEqual(expect.objectContaining({
+      gradcamUrl: '/api/uploads/gradcam-case-1.png',
+    }));
   });
 
   it('downloads case history PDF with active filters', async () => {

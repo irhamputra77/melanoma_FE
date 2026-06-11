@@ -117,4 +117,59 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalled();
   });
+
+  it('shows the backend inactive-account message on login failure', async () => {
+    const user = userEvent.setup();
+    login.mockRejectedValue({
+      response: {
+        status: 403,
+        data: {
+          status: 'error',
+          message: 'Akun Anda tidak aktif. Silakan hubungi administrator.',
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Email Address'), 'inactive@example.com');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(await screen.findByText('Akun Anda tidak aktif. Silakan hubungi administrator.')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('shows nested backend validation errors on login failure', async () => {
+    const user = userEvent.setup();
+    login.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          status: 'error',
+          errors: {
+            email: ['Email tidak valid'],
+            password: ['Password wajib diisi'],
+          },
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Email Address'), 'bad-email@example.com');
+    await user.type(screen.getByPlaceholderText('Password'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(await screen.findByText('Email tidak valid, Password wajib diisi')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
 });

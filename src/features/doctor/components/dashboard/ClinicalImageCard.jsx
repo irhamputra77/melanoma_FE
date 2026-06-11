@@ -1,32 +1,33 @@
+import { useMemo, useState } from "react";
 import { ImagePlus, PenLine } from "lucide-react";
-import { toAssetUrl } from "../../../../utils/assets";
+import { getAssetUrlCandidates } from "../../../../utils/assets";
 
-export default function ClinicalImageCard({ clinicalImage, gradcamUrl, onOpenAnnotation }) {
-    const imageUrl = clinicalImage?.annotatedImageUrl || clinicalImage?.imageUrl;
+export default function ClinicalImageCard({ clinicalImage, onOpenAnnotation }) {
+    const imageUrl = clinicalImage?.imageUrl || clinicalImage?.annotatedImageUrl;
     const hasAnnotation = Boolean(clinicalImage?.annotatedImageUrl);
-    const hasGradcam = Boolean(gradcamUrl);
     const canAnnotate = Boolean(clinicalImage?.imageUrl);
+    const imageCandidates = useMemo(() => getAssetUrlCandidates(imageUrl), [imageUrl]);
+    const [imageFallback, setImageFallback] = useState({ source: "", index: 0 });
+    const imageIndex = imageFallback.source === imageUrl ? imageFallback.index : 0;
 
     if (imageUrl) {
         return (
-            <div className="relative h-[266px] w-full max-w-[352px] overflow-hidden rounded-2xl bg-black">
+            <div className="relative h-[266px] w-full overflow-hidden rounded-2xl bg-black">
                 <img
-                    src={toAssetUrl(imageUrl)}
+                    src={imageCandidates[imageIndex]}
                     alt="Clinical lesion"
                     className="h-full w-full object-cover"
+                    onError={() => {
+                        setImageFallback((current) => ({
+                            source: imageUrl,
+                            index: Math.min((current.source === imageUrl ? current.index : 0) + 1, imageCandidates.length - 1),
+                        }));
+                    }}
                 />
-
-                {hasGradcam && !hasAnnotation && (
-                    <img
-                        src={toAssetUrl(gradcamUrl)}
-                        alt="Grad-CAM overlay"
-                        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45 mix-blend-screen"
-                    />
-                )}
 
                 <div className="absolute left-3 top-3 flex flex-wrap gap-2">
                     <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-extrabold text-slate-800 shadow-sm">
-                        {hasAnnotation ? "DOCTOR ANNOTATION" : hasGradcam ? "GRAD-CAM" : "CLINICAL IMAGE"}
+                        {hasAnnotation && !clinicalImage?.imageUrl ? "DOCTOR ANNOTATION" : "CLINICAL IMAGE"}
                     </span>
                 </div>
 
@@ -44,7 +45,7 @@ export default function ClinicalImageCard({ clinicalImage, gradcamUrl, onOpenAnn
     }
 
     return (
-        <div className="relative flex h-[266px] w-full max-w-[352px] items-center justify-center overflow-hidden rounded-2xl bg-black">
+        <div className="relative flex h-[266px] w-full items-center justify-center overflow-hidden rounded-2xl bg-black">
             <div
                 className="absolute w-[330px] h-[330px] rounded-full opacity-50"
                 style={{

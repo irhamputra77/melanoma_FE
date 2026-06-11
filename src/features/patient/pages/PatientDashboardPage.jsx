@@ -7,6 +7,7 @@ import 'react-image-crop/dist/ReactCrop.css';
 import {
   uploadPatientScan,
   analyzePatientScan,
+  getPatientScanDetail,
   getRecentScans,
   getAvailableDoctors,
   submitVerificationRequest
@@ -21,15 +22,93 @@ const formatDate = (dateString) => {
 const normalizeAvailableDoctor = (doctor = {}) => {
   const profile = doctor.doctorProfile || doctor.profile || {};
   const user = doctor.user || {};
+  const userId = doctor.id || doctor.userId || doctor.doctorUserId || user.id || "";
+  const doctorProfileId = doctor.doctorProfileId || doctor.doctorId || doctor.profileId || profile.id || user.doctorProfile?.id || "";
+  const status = String(
+    doctor.verificationStatus ||
+    doctor.status ||
+    profile.verificationStatus ||
+    profile.status ||
+    profile.practitionerStatus?.status ||
+    doctor.practitionerStatus?.status ||
+    user.doctorProfile?.verificationStatus ||
+    user.doctorProfile?.status ||
+    user.doctorProfile?.practitionerStatus?.status ||
+    ""
+  ).toLowerCase();
+  const accountStatus = String(doctor.accountStatus || doctor.userStatus || user.status || "active").toLowerCase();
+  const isVerified = profile.isVerified ?? doctor.isVerified ?? user.doctorProfile?.isVerified;
 
   return {
     ...doctor,
-    id: profile.id || doctor.doctorId || doctor.profileId || doctor.id || user.doctorProfile?.id || "",
-    userId: doctor.userId || doctor.doctorUserId || user.id || "",
+    id: userId || doctorProfileId,
+    userId,
+    doctorProfileId,
     name: doctor.name || doctor.fullName || user.name || user.fullName || "Doctor",
     specialty: doctor.specialty || doctor.specialization || profile.specialization || "Dermatologist",
+    clinicId: doctor.clinicId || profile.clinicId || "",
+    clinicName: doctor.clinicName || profile.clinicName || doctor.clinic?.name || profile.clinic?.name || "",
     avatarUrl: doctor.avatarUrl || doctor.photoUrl || profile.avatarUrl || profile.profilePhotoUrl || user.avatarUrl || "",
+    status,
+    accountStatus,
+    isVerified,
   };
+};
+
+const MIN_COMPLAINT_CHARACTERS = 10;
+const ANALYSIS_TIMEOUT_MS = 25000;
+const ANALYSIS_POLL_INTERVAL_MS = 1500;
+const ANALYSIS_POLL_ATTEMPTS = 10;
+const isComplaintTooShort = (value = "") => value.replace(/\s/g, "").length < MIN_COMPLAINT_CHARACTERS;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const getApiErrorMessage = (error, fallback) => {
+  const payload = error?.response?.data;
+  const errors = payload?.errors;
+
+  if (typeof payload?.message === "string") return payload.message;
+  if (typeof payload?.error === "string") return payload.error;
+  if (Array.isArray(errors)) {
+    return errors
+      .map((item) => item?.message || item)
+      .filter(Boolean)
+      .join(", ") || fallback;
+  }
+  if (errors && typeof errors === "object") {
+    return Object.values(errors).flat().filter(Boolean).join(", ") || fallback;
+  }
+
+  return error?.message || fallback;
+};
+const normalizeAnalysisPayload = (payload) => payload?.analysis || payload?.data?.analysis || payload?.data || payload;
+const hasAnalysisResult = (payload) => {
+  const result = normalizeAnalysisPayload(payload);
+
+  return Boolean(
+    result?.aiPrediction ||
+    result?.classification ||
+    result?.aiConfidence ||
+    result?.confidence ||
+    result?.riskLevel
+  );
+};
+const shouldRecoverAnalyzeRequest = (error) => {
+  if (!error?.response) return true;
+
+  return [500, 502, 503, 504].includes(error.response.status);
+};
+const isVerifiedDoctor = (doctor) => {
+  const status = String(doctor.status || "").toLowerCase();
+  const accountStatus = String(doctor.accountStatus || "active").toLowerCase();
+
+  if (doctor.isVerified === false) return false;
+  return accountStatus === "active" && ["", "verified", "approved", "active"].includes(status);
+};
+const buildVerificationMessage = ({ complaint, bodySite, aiPrediction }) => {
+  const trimmedComplaint = complaint.trim();
+
+  if (trimmedComplaint.length >= 5) return trimmedComplaint;
+
+  return `Mohon verifikasi hasil deteksi AI${bodySite ? ` pada ${bodySite}` : ""}${aiPrediction ? `: ${aiPrediction}` : ""}.`;
 };
 
 const PatientDashboardPage = () => {
@@ -52,6 +131,7 @@ const PatientDashboardPage = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [verificationError, setVerificationError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   // STATE BARU: Untuk fitur crop (FE Only)
@@ -84,9 +164,9 @@ const PatientDashboardPage = () => {
       const data = await getAvailableDoctors();
       const doctorsList = (data.data || data || [])
         .map(normalizeAvailableDoctor)
-        .filter((doctor) => doctor.id);
+        .filter((doctor) => doctor.id && isVerifiedDoctor(doctor));
       setAvailableDoctors(doctorsList);
-      if (doctorsList.length > 0) setSelectedDoctorId(doctorsList[0].id);
+      setSelectedDoctorId(doctorsList[0]?.id || "");
     } catch (error) {
       console.error("Gagal memuat daftar dokter:", error);
     } finally {
@@ -121,6 +201,7 @@ const PatientDashboardPage = () => {
     setComplaint('');
     setViewState('upload');
     setErrorMessage('');
+    setVerificationError('');
   };
 
   // FUNGSI BARU: Logika kanvas untuk menyimpan hasil crop (FE Only)
@@ -166,7 +247,7 @@ const PatientDashboardPage = () => {
   const handleAnalyze = async () => {
     if (!selectedFile) return;
     if (!bodySite.trim()) return setErrorMessage("Lokasi di tubuh wajib diisi.");
-    if (complaint.trim().length < 5) return setErrorMessage("Keluhan minimal 5 karakter.");
+    if (isComplaintTooShort(complaint)) return setErrorMessage("Complaint must be at least 10 characters");
 
     setIsAnalyzing(true);
     setErrorMessage('');
@@ -176,19 +257,52 @@ const PatientDashboardPage = () => {
 
       if (!scanId) {
         const uploadData = await uploadPatientScan(selectedFile, complaint, bodySite);
-        // Menangkap data id (UUID) atau scanId (SCN-xxx)
-        scanId = uploadData.scanId || uploadData.id;
+        // Prioritaskan UUID internal, fallback ke public scanId (SCN-xxx).
+        scanId = uploadData.id || uploadData.scanId;
+
+        if (!scanId) {
+          throw new Error("Upload response does not contain scan id.");
+        }
+
         setCurrentScanId(scanId);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      const rawResultData = await analyzePatientScan(scanId);
-      const resultData = rawResultData?.analysis || rawResultData?.data || rawResultData;
+      console.info("[Patient AI Analysis]", {
+        scanIdentifier: scanId,
+        analyzePath: `/scans/${scanId}/analyze`,
+      });
+      let rawResultData;
+
+      try {
+        rawResultData = await analyzePatientScan(scanId, { timeout: ANALYSIS_TIMEOUT_MS });
+      } catch (error) {
+        if (!shouldRecoverAnalyzeRequest(error)) {
+          throw error;
+        }
+
+        console.warn("[Patient AI Analysis] analyze request did not finish; polling scan detail", {
+          status: error.response?.status,
+          message: error.response?.data?.message || error.message,
+          scanIdentifier: scanId,
+        });
+        rawResultData = await waitForScanAnalysis(scanId);
+      }
+
+      const resultData = normalizeAnalysisPayload(rawResultData);
 
       setAnalysisResult(resultData);
+      setErrorMessage('');
       setViewState('result');
       fetchRecentScans();
     } catch (error) {
+      console.error("[Patient AI Analysis] failed", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        response: error.response?.data,
+      });
       setErrorMessage(error.response?.data?.message || 'Gagal memproses gambar AI.');
       fetchRecentScans();
     } finally {
@@ -196,15 +310,48 @@ const PatientDashboardPage = () => {
     }
   };
 
+  const waitForScanAnalysis = async (scanId) => {
+    for (let attempt = 0; attempt < ANALYSIS_POLL_ATTEMPTS; attempt += 1) {
+      if (attempt > 0) {
+        await wait(ANALYSIS_POLL_INTERVAL_MS);
+      }
+
+      const scanDetail = await getPatientScanDetail(scanId);
+
+      if (hasAnalysisResult(scanDetail)) {
+        return scanDetail;
+      }
+    }
+
+    throw new Error('Analisis AI masih diproses. Silakan coba refresh halaman dalam beberapa saat.');
+  };
+
   const handleRequestVerification = async () => {
-    if (!currentScanId || !selectedDoctorId) return;
+    if (!currentScanId) {
+      setVerificationError('Scan ID tidak ditemukan. Silakan lakukan scan ulang.');
+      return;
+    }
+    if (!selectedDoctorId) {
+      setVerificationError('Pilih dokter terlebih dahulu.');
+      return;
+    }
+
     setIsRequesting(true);
-    setErrorMessage('');
+    setVerificationError('');
+    setSuccessMessage('');
 
     try {
+      const message = buildVerificationMessage({
+        complaint,
+        bodySite,
+        aiPrediction: analysisResult?.aiPrediction || analysisResult?.classification || "",
+      });
+
       await submitVerificationRequest({
         scanId: currentScanId,
         doctorId: selectedDoctorId,
+        message,
+        initialMessage: message,
       });
       setSuccessMessage('Permintaan verifikasi berhasil dikirim ke Dokter.');
       setTimeout(() => {
@@ -213,7 +360,7 @@ const PatientDashboardPage = () => {
         setSuccessMessage('');
       }, 3000);
     } catch (error) {
-      setErrorMessage(error.response?.data?.message || 'Gagal mengirim permintaan verifikasi.');
+      setVerificationError(getApiErrorMessage(error, 'Gagal mengirim permintaan verifikasi.'));
     } finally {
       setIsRequesting(false);
     }
@@ -332,16 +479,35 @@ const PatientDashboardPage = () => {
             <div className="mb-6 space-y-4 animate-fadeIn">
               <div>
                 <label className="block text-gray-700 text-[11px] font-bold mb-2 tracking-widest uppercase">Lokasi di Tubuh</label>
-                <input type="text" value={bodySite} onChange={(e) => setBodySite(e.target.value)} placeholder="Contoh: Lengan Kanan, Wajah..." className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 outline-none focus:border-blue-500" />
+                <input
+                  type="text"
+                  value={bodySite}
+                  onChange={(e) => {
+                    setBodySite(e.target.value);
+                    setErrorMessage('');
+                  }}
+                  placeholder="Contoh: Lengan Kanan, Wajah..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
               </div>
               <div>
                 <label className="block text-gray-700 text-[11px] font-bold mb-2 tracking-widest uppercase">Keluhan</label>
-                <textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} rows="3" placeholder="Jelaskan keluhan Anda..." className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 outline-none resize-none focus:border-blue-500"></textarea>
+                <textarea
+                  value={complaint}
+                  onChange={(e) => {
+                    setComplaint(e.target.value);
+                    setErrorMessage('');
+                  }}
+                  minLength={10}
+                  rows="3"
+                  placeholder="Jelaskan keluhan Anda..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 outline-none resize-none focus:border-blue-500"
+                ></textarea>
               </div>
             </div>
           )}
 
-          {errorMessage && <p className="mb-4 text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg font-medium shadow-sm">{errorMessage}</p>}
+          {errorMessage && viewState !== 'result' && <p className="mb-4 text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg font-medium shadow-sm">{errorMessage}</p>}
 
           <div className="flex justify-end">
             {/* PERBAIKAN: Sembunyikan tombol utama saat sedang melakukan crop */}
@@ -436,17 +602,32 @@ const PatientDashboardPage = () => {
                       <img src={doc.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.name}`} className="w-10 h-10 rounded-full bg-gray-100 mr-3" alt={doc.name} />
                       <div className="flex-1">
                         <p className="text-sm font-bold text-gray-900">{doc.name}</p>
-                        <p className="text-xs text-gray-500">{doc.specialty || 'Dermatologist'}</p>
+                        <p className="text-xs text-gray-500">{doc.specialty || 'Dermatologist'}{doc.clinicName ? ` • ${doc.clinicName}` : ''}</p>
                       </div>
-                      <input type="radio" name="doctor" value={doc.id} checked={selectedDoctorId === doc.id} onChange={(e) => setSelectedDoctorId(e.target.value)} className="hidden" />
+                      <input
+                        type="radio"
+                        name="doctor"
+                        value={doc.id}
+                        checked={selectedDoctorId === doc.id}
+                        onChange={(e) => {
+                          setSelectedDoctorId(e.target.value);
+                          setVerificationError('');
+                        }}
+                        className="hidden"
+                      />
                       <div className={`w-4 h-4 rounded-full border-4 ${selectedDoctorId === doc.id ? 'border-blue-600 bg-white' : 'border-gray-300'}`}></div>
                     </label>
                   ))
                 ) : (
-                  <p className="text-xs text-red-500">Tidak ada dokter yang tersedia.</p>
+                  <p className="text-xs text-red-500">Tidak ada dokter terverifikasi yang tersedia.</p>
                 )}
               </div>
             </div>
+            {verificationError && (
+              <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                {verificationError}
+              </div>
+            )}
             <LoadingButton onClick={handleRequestVerification} isLoading={isRequesting} disabled={viewState !== 'result' || isRequesting || !selectedDoctorId} className="w-full py-3 mt-2">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg> Request Verification
             </LoadingButton>

@@ -1,5 +1,4 @@
-import { toAssetUrl } from "../../../../utils/assets";
-import LesionThumbnail from "./LesionThumbnail";
+import CaseImageThumbnail from "./CaseImageThumbnail";
 
 const statusClass = {
     approved: "bg-emerald-200 text-emerald-700",
@@ -28,11 +27,11 @@ export default function CaseHistoryTable({
             <table className="w-full table-fixed text-left">
                 <thead className="bg-slate-100 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-700">
                     <tr>
-                        <th className="w-[15%] px-8 py-4">Date</th>
-                        <th className="w-[25%] px-4 py-4">Patient</th>
-                        <th className="w-[18%] px-4 py-4">Clinical Image</th>
-                        <th className="w-[24%] px-4 py-4">AI Diagnosis</th>
-                        <th className="w-[18%] px-4 py-4">Verification</th>
+                        <th className="w-[13%] px-8 py-4">Date</th>
+                        <th className="w-[20%] px-4 py-4">Patient</th>
+                        <th className="w-[31%] px-4 py-4">Images</th>
+                        <th className="w-[21%] px-4 py-4">AI Diagnosis</th>
+                        <th className="w-[15%] px-4 py-4">Verification</th>
                     </tr>
                 </thead>
 
@@ -88,15 +87,23 @@ export default function CaseHistoryTable({
                                 </td>
 
                                 <td className="px-4 py-4 align-middle">
-                                    {item.clinicalImageUrl ? (
-                                        <img
-                                            src={toAssetUrl(item.clinicalImageUrl)}
-                                            alt={`Case ${item.caseId}`}
-                                            className="h-10 w-10 rounded-lg object-cover"
+                                    <div className="flex items-start gap-3">
+                                        <CaseImageThumbnail
+                                            imageUrl={item.clinicalImageUrl}
+                                            label="Clinical"
+                                            alt={`Clinical image for case ${item.caseId}`}
                                         />
-                                    ) : (
-                                        <LesionThumbnail />
-                                    )}
+                                        <CaseImageThumbnail
+                                            imageUrl={item.gradcamUrl}
+                                            label="Grad-CAM"
+                                            alt={`Grad-CAM image for case ${item.caseId}`}
+                                        />
+                                        <CaseImageThumbnail
+                                            imageUrl={item.annotatedImageUrl}
+                                            label="Edited"
+                                            alt={`Edited annotation for case ${item.caseId}`}
+                                        />
+                                    </div>
                                 </td>
 
                                 <td className="px-4 py-4 align-middle">

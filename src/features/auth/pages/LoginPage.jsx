@@ -11,6 +11,32 @@ import {
     getTokenFromAuthResponse,
 } from "../utils/authFlow";
 
+function getLoginErrorMessage(error) {
+    const payload = error?.response?.data;
+    const errors = payload?.errors || payload?.data?.errors;
+
+    if (typeof payload?.message === "string") return payload.message;
+    if (typeof payload?.error === "string") return payload.error;
+    if (typeof payload?.data?.message === "string") return payload.data.message;
+    if (typeof payload?.data?.error === "string") return payload.data.error;
+
+    if (Array.isArray(errors)) {
+        const message = errors
+            .map((item) => item?.message || item?.msg || item)
+            .filter(Boolean)
+            .join(", ");
+
+        if (message) return message;
+    }
+
+    if (errors && typeof errors === "object") {
+        const message = Object.values(errors).flat().filter(Boolean).join(", ");
+        if (message) return message;
+    }
+
+    return error?.message || "Login failed. Please try again.";
+}
+
 export default function LoginPage() {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = React.useState(false);
@@ -77,11 +103,7 @@ export default function LoginPage() {
                 throw new Error("User role is missing from the authentication response.");
             }
         } catch (error) {
-            setError(
-                error.response?.data?.message ||
-                error.message ||
-                "Login failed. Please try again."
-            );
+            setError(getLoginErrorMessage(error));
         } finally {
             setLoading(false);
         }

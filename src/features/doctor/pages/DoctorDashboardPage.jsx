@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DoctorStats from "../components/dashboard/DoctorStats";
 import AssignedCaseList from "../components/dashboard/AssignedCaseList";
 import CaseExaminationPanel from "../components/dashboard/CaseExaminationPanel";
@@ -13,6 +13,8 @@ import {
 } from "../services/doctorService";
 
 export default function DoctorDashboardPage() {
+    const loadedDetailCaseIdRef = useRef("");
+    const detailRequestRef = useRef(0);
     const [summary, setSummary] = useState(null);
     const [assignedCases, setAssignedCases] = useState([]);
     const [selectedCaseId, setSelectedCaseId] = useState("");
@@ -31,9 +33,13 @@ export default function DoctorDashboardPage() {
                 if (!isMounted) return;
 
                 const sharedCaseId = new URLSearchParams(window.location.search).get("caseId");
+                const firstCaseId = casesData?.[0]?.caseId || casesData?.[0]?.id || casesData?.[0]?.requestId || "";
+                const sharedCase = casesData?.find((item) => (
+                    item.caseId === sharedCaseId || item.scanId === sharedCaseId || item.requestId === sharedCaseId
+                ));
                 setSummary(summaryData);
                 setAssignedCases(casesData || []);
-                setSelectedCaseId(sharedCaseId || casesData?.[0]?.caseId || "");
+                setSelectedCaseId(sharedCase?.caseId || firstCaseId);
             })
             .catch((error) => {
                 if (isMounted) {
@@ -52,28 +58,85 @@ export default function DoctorDashboardPage() {
     }, []);
 
     useEffect(() => {
+        let isMounted = true;
+
+        const refreshAssignedCases = () => {
+            getAssignedCases()
+                .then((casesData) => {
+                    if (!isMounted) return;
+
+                    setAssignedCases(casesData || []);
+                    setSelectedCaseId((currentCaseId) => {
+                        const matchedCase = casesData?.find((item) => (
+                            item.caseId === currentCaseId || item.scanId === currentCaseId || item.requestId === currentCaseId
+                        ));
+
+                        return matchedCase?.caseId || casesData?.[0]?.caseId || casesData?.[0]?.id || casesData?.[0]?.requestId || "";
+                    });
+                })
+                .catch((error) => {
+                    if (isMounted) {
+                        setError(error.response?.data?.message || "Failed to refresh assigned cases.");
+                    }
+                });
+        };
+
+        const intervalId = window.setInterval(refreshAssignedCases, 12_000);
+        window.addEventListener("focus", refreshAssignedCases);
+
+        return () => {
+            isMounted = false;
+            window.clearInterval(intervalId);
+            window.removeEventListener("focus", refreshAssignedCases);
+        };
+    }, []);
+
+    useEffect(() => {
         if (!selectedCaseId) {
+            loadedDetailCaseIdRef.current = "";
             setCaseDetails(null);
             return;
         }
 
+        const selectedAssignedCase = assignedCases.find((item) => (
+            item.caseId === selectedCaseId || item.scanId === selectedCaseId || item.requestId === selectedCaseId
+        ));
+        const detailCaseId = selectedAssignedCase?.detailCaseId || selectedAssignedCase?.caseId || selectedCaseId;
+
+        if (!detailCaseId) {
+            setCaseDetails(null);
+            setObservation("");
+            setCaseLoading(false);
+            setError("Assigned case is missing an identifier from the backend response. Cannot load case detail yet.");
+            return;
+        }
+
+        if (loadedDetailCaseIdRef.current === detailCaseId) {
+            return;
+        }
+
         let isMounted = true;
+        const requestId = detailRequestRef.current + 1;
+        detailRequestRef.current = requestId;
         setCaseLoading(true);
+        setError("");
 
-        getCaseDetails(selectedCaseId)
+        getCaseDetails(detailCaseId)
             .then((data) => {
-                if (!isMounted) return;
+                if (!isMounted || detailRequestRef.current !== requestId) return;
 
+                loadedDetailCaseIdRef.current = detailCaseId;
                 setCaseDetails(data);
                 setObservation(data?.physicianObservation || "");
+                setError("");
             })
             .catch((error) => {
-                if (isMounted) {
+                if (isMounted && detailRequestRef.current === requestId) {
                     setError(error.response?.data?.message || "Failed to fetch case details.");
                 }
             })
             .finally(() => {
-                if (isMounted) {
+                if (isMounted && detailRequestRef.current === requestId) {
                     setCaseLoading(false);
                 }
             });
@@ -81,7 +144,7 @@ export default function DoctorDashboardPage() {
         return () => {
             isMounted = false;
         };
-    }, [selectedCaseId]);
+    }, [selectedCaseId, assignedCases]);
 
     const handleSaveObservation = async () => {
         if (!caseDetails?.caseId) return;
@@ -89,7 +152,11 @@ export default function DoctorDashboardPage() {
         setActionLoading("save");
 
         try {
-            await savePhysicianObservation(caseDetails.caseId, observation);
+            await runCaseActionWithFallback(
+                savePhysicianObservation,
+                getActionCaseIds(caseDetails, findAssignedCase(assignedCases, selectedCaseId)),
+                observation,
+            );
             setCaseDetails((current) => ({
                 ...current,
                 physicianObservation: observation,
@@ -108,14 +175,19 @@ export default function DoctorDashboardPage() {
         setError("");
 
         try {
-            const result = await uploadCaseAnnotation(caseDetails.caseId, file);
+            const result = await runCaseActionWithFallback(
+                uploadCaseAnnotation,
+                getActionCaseIds(caseDetails, findAssignedCase(assignedCases, selectedCaseId)),
+                file,
+            );
+            const annotatedImageUrl = result?.annotatedImageUrl;
 
-            if (result?.annotatedImageUrl) {
+            if (annotatedImageUrl) {
                 setCaseDetails((current) => ({
                     ...current,
                     clinicalImage: {
                         ...(current?.clinicalImage || {}),
-                        annotatedImageUrl: result.annotatedImageUrl,
+                        annotatedImageUrl,
                     },
                 }));
                 return;
@@ -136,14 +208,20 @@ export default function DoctorDashboardPage() {
         if (!caseDetails?.caseId) return;
 
         const finalDiagnosis = caseDetails.aiPrediction?.predictions?.[0]?.label || "Approved";
+        const selectedAssignedCase = findAssignedCase(assignedCases, selectedCaseId);
         setActionLoading("approve");
 
         try {
-            await approveCase(caseDetails.caseId, {
-                physicianObservation: observation,
-                finalDiagnosis,
-            });
-            const nextCases = assignedCases.filter((item) => item.caseId !== caseDetails.caseId);
+            await runCaseActionWithFallback(
+                approveCase,
+                getActionCaseIds(caseDetails, selectedAssignedCase),
+                {
+                    physicianObservation: observation,
+                    finalDiagnosis,
+                },
+            );
+            const removeIds = getActionCaseIds(caseDetails, selectedAssignedCase);
+            const nextCases = assignedCases.filter((item) => !removeIds.includes(item.caseId));
             setAssignedCases(nextCases);
             setSelectedCaseId(nextCases[0]?.caseId || "");
         } catch (error) {
@@ -157,15 +235,21 @@ export default function DoctorDashboardPage() {
         if (!caseDetails?.caseId) return;
 
         const finalDiagnosis = caseDetails.aiPrediction?.predictions?.[1]?.label || "Rejected";
+        const selectedAssignedCase = findAssignedCase(assignedCases, selectedCaseId);
         setActionLoading("reject");
 
         try {
-            await rejectCase(caseDetails.caseId, {
-                reason: "False positive prediction",
-                physicianObservation: observation,
-                finalDiagnosis,
-            });
-            const nextCases = assignedCases.filter((item) => item.caseId !== caseDetails.caseId);
+            await runCaseActionWithFallback(
+                rejectCase,
+                getActionCaseIds(caseDetails, selectedAssignedCase),
+                {
+                    reason: "False positive prediction",
+                    physicianObservation: observation,
+                    finalDiagnosis,
+                },
+            );
+            const removeIds = getActionCaseIds(caseDetails, selectedAssignedCase);
+            const nextCases = assignedCases.filter((item) => !removeIds.includes(item.caseId));
             setAssignedCases(nextCases);
             setSelectedCaseId(nextCases[0]?.caseId || "");
         } catch (error) {
@@ -223,4 +307,50 @@ export default function DoctorDashboardPage() {
             </div>
         </div>
     );
+}
+
+function findAssignedCase(assignedCases, selectedCaseId) {
+    return assignedCases.find((item) => (
+        item.caseId === selectedCaseId || item.scanId === selectedCaseId || item.requestId === selectedCaseId
+    ));
+}
+
+function getActionCaseIds(caseDetails, assignedCase) {
+    return uniqueValues([
+        assignedCase?.actionCaseId,
+        caseDetails?.actionCaseId,
+        caseDetails?.caseId,
+        caseDetails?.scanId,
+        assignedCase?.detailCaseId,
+        assignedCase?.caseId,
+        assignedCase?.scanId,
+        caseDetails?.requestId,
+        caseDetails?.verificationRequestId,
+        assignedCase?.requestId,
+        assignedCase?.verificationRequestId,
+        assignedCase?.id,
+    ]);
+}
+
+async function runCaseActionWithFallback(action, caseIds, payload) {
+    let lastError;
+
+    for (const caseId of caseIds) {
+        try {
+            return await action(caseId, payload);
+        } catch (error) {
+            lastError = error;
+            const status = error?.response?.status;
+
+            if (![400, 404].includes(status)) {
+                throw error;
+            }
+        }
+    }
+
+    throw lastError || new Error("Failed to run case action.");
+}
+
+function uniqueValues(values) {
+    return [...new Set(values.filter((value) => value !== undefined && value !== null && value !== ""))];
 }

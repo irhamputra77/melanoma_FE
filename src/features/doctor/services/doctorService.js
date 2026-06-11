@@ -15,15 +15,15 @@ export const getAssignedCases = async () => {
     const response = await doctorRequest({ method: "get", url: ENDPOINTS.DOCTOR.ASSIGNED_CASES });
     const payload = unwrap(response);
 
-    if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload)) return payload.map(normalizeAssignedCase).filter((item) => item.caseId);
+    if (Array.isArray(payload?.data)) return payload.data.map(normalizeAssignedCase).filter((item) => item.caseId);
 
     return [];
 };
 
 export const getCaseDetails = async (caseId) => {
     const response = await doctorRequest({ method: "get", url: ENDPOINTS.DOCTOR.CASE_DETAIL(caseId) });
-    return unwrap(response);
+    return normalizeDoctorCaseDetails(unwrap(response));
 };
 
 export const uploadCaseAnnotation = async (caseId, annotationImage) => {
@@ -137,6 +137,152 @@ function normalizeCaseHistoryParams(params = {}) {
     return queryParams;
 }
 
+function normalizeDoctorCaseDetails(caseDetails = {}) {
+    const scan = caseDetails.scan || caseDetails.patientScan || caseDetails.scanData || {};
+    const clinicalImage = caseDetails.clinicalImage || scan.clinicalImage || {};
+    const aiPrediction = caseDetails.aiPrediction || caseDetails.analysis || scan.aiPrediction || {};
+    const imageUrl = firstDefined(
+        clinicalImage.imageUrl,
+        clinicalImage.clinicalImageUrl,
+        clinicalImage.scanImageUrl,
+        clinicalImage.url,
+        clinicalImage.fileUrl,
+        clinicalImage.path,
+        caseDetails.imageUrl,
+        caseDetails.clinicalImageUrl,
+        caseDetails.scanImageUrl,
+        caseDetails.scanImage,
+        scan.imageUrl,
+        scan.clinicalImageUrl,
+        scan.scanImageUrl,
+        scan.url,
+        scan.fileUrl,
+    );
+    const annotatedImageUrl = firstDefined(
+        clinicalImage.annotatedImageUrl,
+        clinicalImage.annotationImageUrl,
+        clinicalImage.doctorAnnotationUrl,
+        caseDetails.annotatedImageUrl,
+        caseDetails.annotationImageUrl,
+        caseDetails.editedGradcamImageUrl,
+        caseDetails.editedGradCamImageUrl,
+        caseDetails.editedGradcamUrl,
+        caseDetails.editedGradCamUrl,
+        scan.annotatedImageUrl,
+        scan.annotationImageUrl,
+        scan.editedGradcamImageUrl,
+        scan.editedGradCamImageUrl,
+    );
+    const gradcamUrl = firstDefined(
+        aiPrediction.gradcamUrl,
+        aiPrediction.gradCamUrl,
+        aiPrediction.heatmapUrl,
+        caseDetails.gradcamUrl,
+        caseDetails.gradCamUrl,
+        caseDetails.gradcamImageUrl,
+        caseDetails.gradCamImageUrl,
+        caseDetails.heatmapUrl,
+        scan.gradcamUrl,
+        scan.gradCamUrl,
+        scan.gradcamImageUrl,
+        scan.gradCamImageUrl,
+        scan.heatmapUrl,
+    );
+
+    return {
+        ...caseDetails,
+        clinicalImage: {
+            ...clinicalImage,
+            ...(imageUrl ? { imageUrl } : {}),
+            ...(annotatedImageUrl ? { annotatedImageUrl } : {}),
+        },
+        aiPrediction: {
+            ...aiPrediction,
+            ...(gradcamUrl ? { gradcamUrl } : {}),
+        },
+    };
+}
+
+function normalizeAssignedCase(item = {}) {
+    const patient = item.patient || item.user || item.patientUser || item.scan?.patient || {};
+    const scan = item.scan || item.patientScan || item.scanData || {};
+    const requestId = firstDefined(item.verificationRequestId, item.requestId, item.id);
+    const scanId = firstDefined(item.scanId, scan.scanId, scan.id);
+    const actionCaseId = firstDefined(item.actionCaseId, item.detailCaseId, item.caseId, scan.scanId, scan.id, requestId);
+    const detailCaseId = firstDefined(
+        item.detailCaseId,
+        item.caseId,
+        item.case?.caseId,
+        scan.caseId,
+        scanId,
+        requestId,
+    );
+    const caseId = firstDefined(detailCaseId, requestId);
+    const patientName = firstDefined(
+        item.patientName,
+        item.patient?.name,
+        item.patient?.fullName,
+        patient.fullName,
+        patient.name,
+        item.userName,
+        "Patient",
+    );
+    const receivedAt = firstDefined(
+        item.receivedAt,
+        item.assignedAt,
+        item.createdAt,
+        item.updatedAt,
+        scan.createdAt,
+        scan.uploadedAt,
+    );
+    const avatarUrl = firstDefined(
+        item.avatarUrl,
+        item.patientAvatarUrl,
+        patient.avatarUrl,
+        patient.profilePhotoUrl,
+        patient.photoUrl,
+    );
+    const scanImageUrl = firstDefined(item.scanImageUrl, item.clinicalImageUrl, scan.imageUrl, scan.scanImageUrl);
+    const gradcamImageUrl = firstDefined(item.gradcamImageUrl, item.gradCamImageUrl, item.gradcamUrl, item.heatmapUrl, scan.gradcamUrl);
+    const annotatedImageUrl = firstDefined(
+        item.annotatedImageUrl,
+        item.annotationImageUrl,
+        item.editedGradcamImageUrl,
+        item.editedGradCamImageUrl,
+        scan.annotatedImageUrl,
+        scan.annotationImageUrl,
+    );
+
+    return {
+        ...item,
+        caseId,
+        detailCaseId,
+        actionCaseId,
+        requestId,
+        scanId,
+        patientName,
+        receivedAt,
+        avatarUrl,
+        ...(scanImageUrl ? { scanImageUrl, clinicalImageUrl: scanImageUrl } : {}),
+        ...(gradcamImageUrl ? { gradcamImageUrl, gradcamUrl: gradcamImageUrl } : {}),
+        ...(annotatedImageUrl ? { annotatedImageUrl, annotationImageUrl: annotatedImageUrl, editedGradcamImageUrl: annotatedImageUrl } : {}),
+        status: normalizeAssignedCaseStatus(firstDefined(item.status, item.verificationStatus, item.caseStatus, "pending_review")),
+    };
+}
+
+function normalizeAssignedCaseStatus(status) {
+    const value = String(status || "").toLowerCase();
+
+    if (["pending", "submitted", "waiting", "in_review"].includes(value)) return "pending_review";
+    if (["approved", "verified"].includes(value)) return "verified";
+
+    return value || "pending_review";
+}
+
+function firstDefined(...values) {
+    return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
 function normalizeCaseHistoryResponse(payload, queryParams) {
     if (payload?.status === "error") {
         throw new Error(payload.message || "Failed to fetch case history.");
@@ -154,12 +300,70 @@ function normalizeCaseHistoryResponse(payload, queryParams) {
 
     return {
         status: payload?.status || "success",
-        data,
+        data: data.map(normalizeHistoryCase),
         meta: {
             page: Number(meta.page || queryParams.page),
             limit: Number(meta.limit || queryParams.limit),
             total: Number(meta.total || 0),
         },
+    };
+}
+
+function normalizeHistoryCase(item = {}) {
+    const scan = item.scan || item.patientScan || item.scanData || {};
+    const clinicalImage = item.clinicalImage || scan.clinicalImage || {};
+    const aiPrediction = item.aiPredictionData || item.aiPredictionDetail || item.analysis || item.aiAnalysis || scan.analysis || {};
+    const clinicalImageUrl = firstDefined(
+        item.clinicalImageUrl,
+        item.imageUrl,
+        item.scanImageUrl,
+        clinicalImage.imageUrl,
+        clinicalImage.clinicalImageUrl,
+        clinicalImage.scanImageUrl,
+        clinicalImage.url,
+        scan.imageUrl,
+        scan.scanImageUrl,
+        scan.url,
+    );
+    const gradcamUrl = firstDefined(
+        item.gradcamUrl,
+        item.gradCamUrl,
+        item.gradcamImageUrl,
+        item.gradCamImageUrl,
+        item.heatmapUrl,
+        item.gradcamImageUrl,
+        item.gradCamImageUrl,
+        item.aiPrediction?.gradcamUrl,
+        item.aiPrediction?.gradCamUrl,
+        item.aiPrediction?.heatmapUrl,
+        aiPrediction.gradcamUrl,
+        aiPrediction.gradCamUrl,
+        aiPrediction.heatmapUrl,
+        scan.gradcamUrl,
+        scan.gradCamUrl,
+        scan.heatmapUrl,
+    );
+    const annotatedImageUrl = firstDefined(
+        item.annotatedImageUrl,
+        item.annotationImageUrl,
+        item.doctorAnnotationUrl,
+        item.editedGradcamUrl,
+        item.editedGradCamUrl,
+        item.editedGradcamImageUrl,
+        item.editedGradCamImageUrl,
+        item.annotatedGradcamUrl,
+        clinicalImage.annotatedImageUrl,
+        clinicalImage.annotationImageUrl,
+        clinicalImage.doctorAnnotationUrl,
+        scan.annotatedImageUrl,
+        scan.annotationImageUrl,
+    );
+
+    return {
+        ...item,
+        ...(clinicalImageUrl ? { clinicalImageUrl } : {}),
+        ...(gradcamUrl ? { gradcamUrl } : {}),
+        ...(annotatedImageUrl ? { annotatedImageUrl } : {}),
     };
 }
 

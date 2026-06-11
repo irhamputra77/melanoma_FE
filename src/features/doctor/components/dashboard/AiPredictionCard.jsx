@@ -1,6 +1,5 @@
 import { BrainCircuit } from "lucide-react";
 import PredictionBar from "./PredictionBar";
-import { toAssetUrl } from "../../../../utils/assets";
 
 export default function AiPredictionCard({ aiPrediction }) {
     const predictions = normalizePredictions(aiPrediction);
@@ -26,19 +25,6 @@ export default function AiPredictionCard({ aiPrediction }) {
                     {confidenceLabel}
                 </span>
             </div>
-
-            {aiPrediction?.gradcamUrl && (
-                <div className="mb-6 overflow-hidden rounded-2xl border border-blue-100 bg-white">
-                    <img
-                        src={toAssetUrl(aiPrediction.gradcamUrl)}
-                        alt="Grad-CAM heatmap"
-                        className="h-40 w-full object-cover"
-                    />
-                    <div className="px-4 py-3 text-xs font-bold text-slate-500">
-                        Grad-CAM heatmap reference
-                    </div>
-                </div>
-            )}
 
             <PredictionBar
                 label={primary?.label || "Melanocytic Nevus"}

@@ -1,5 +1,6 @@
 import ClinicalImageCard from "./ClinicalImageCard";
 import ClinicalImageMeta from "./ClinicalImageMeta";
+import GradcamImageCard from "./GradcamImageCard";
 import AiPredictionCard from "./AiPredictionCard";
 import PatientNotesCard from "./PatientNotesCard";
 import PhysicianObservationBox from "./PhysicianObservationBox";
@@ -64,11 +65,20 @@ export default function CaseExaminationPanel({
 
             <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8">
                 <div>
-                    <ClinicalImageCard
-                        clinicalImage={caseDetails.clinicalImage}
-                        gradcamUrl={caseDetails.aiPrediction?.gradcamUrl}
-                        onOpenAnnotation={() => setAnnotationOpen(true)}
-                    />
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                        <ClinicalImageCard
+                            clinicalImage={caseDetails.clinicalImage}
+                            onOpenAnnotation={() => setAnnotationOpen(true)}
+                        />
+                        <GradcamImageCard gradcamUrl={caseDetails.aiPrediction?.gradcamUrl} />
+                        {caseDetails.clinicalImage?.annotatedImageUrl && (
+                            <GradcamImageCard
+                                gradcamUrl={caseDetails.clinicalImage.annotatedImageUrl}
+                                label="EDITED ANNOTATION"
+                                emptyLabel="No edited annotation"
+                            />
+                        )}
+                    </div>
                     <ClinicalImageMeta clinicalImage={caseDetails.clinicalImage} />
                 </div>
 

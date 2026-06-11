@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion as Motion } from "motion/react";
 import { Brush, Eraser, RotateCcw, Save, Undo2, X } from "lucide-react";
-import { toAssetUrl } from "../../../../utils/assets";
+import { getAssetUrlCandidates } from "../../../../utils/assets";
 
 const MAX_CANVAS_WIDTH = 840;
 const MAX_CANVAS_HEIGHT = 560;
+const DEFAULT_BRUSH_COLOR = "#2563eb";
+const BRUSH_COLOR_OPTIONS = [
+    { label: "Blue", value: "#2563eb" },
+    { label: "Red", value: "#dc2626" },
+    { label: "Amber", value: "#f59e0b" },
+    { label: "Green", value: "#16a34a" },
+    { label: "Purple", value: "#7c3aed" },
+    { label: "White", value: "#ffffff" },
+];
 
 export default function GradcamAnnotationModal({
     open,
@@ -17,37 +26,51 @@ export default function GradcamAnnotationModal({
     const drawCanvasRef = useRef(null);
     const isDrawingRef = useRef(false);
     const lastPointRef = useRef(null);
+    const gradcamOpacityRef = useRef(0.42);
 
     const [canvasSize, setCanvasSize] = useState({ width: 720, height: 480 });
     const [tool, setTool] = useState("brush");
     const [brushSize, setBrushSize] = useState(18);
+    const [brushColor, setBrushColor] = useState(DEFAULT_BRUSH_COLOR);
     const [gradcamOpacity, setGradcamOpacity] = useState(0.42);
     const [history, setHistory] = useState([]);
     const [loadError, setLoadError] = useState("");
+    const [imageReady, setImageReady] = useState(false);
 
     const imageUrl = caseDetails?.clinicalImage?.imageUrl;
     const gradcamUrl = caseDetails?.aiPrediction?.gradcamUrl;
     const annotatedImageUrl = caseDetails?.clinicalImage?.annotatedImageUrl;
 
     useEffect(() => {
+        gradcamOpacityRef.current = gradcamOpacity;
+    }, [gradcamOpacity]);
+
+    useEffect(() => {
         if (!open) return;
 
         let cancelled = false;
-        setLoadError("");
-        setHistory([]);
+
+        queueMicrotask(() => {
+            if (cancelled) return;
+
+            setLoadError("");
+            setImageReady(false);
+            setHistory([]);
+        });
 
         async function drawBase() {
             try {
-                const baseImage = await loadCanvasImage(toAssetUrl(imageUrl));
-                const gradcamImage = gradcamUrl ? await loadCanvasImage(toAssetUrl(gradcamUrl)).catch(() => null) : null;
+                const baseImage = await loadFirstCanvasImage(imageUrl);
+                const gradcamImage = gradcamUrl ? await loadFirstCanvasImage(gradcamUrl).catch(() => null) : null;
                 if (cancelled) return;
 
                 const size = getContainedSize(baseImage.naturalWidth, baseImage.naturalHeight);
                 setCanvasSize(size);
 
                 requestAnimationFrame(() => {
-                    paintBaseCanvas(baseCanvasRef.current, baseImage, gradcamImage, size, gradcamOpacity);
+                    paintBaseCanvas(baseCanvasRef.current, baseImage, gradcamImage, size, gradcamOpacityRef.current);
                     clearCanvas(drawCanvasRef.current, size);
+                    setImageReady(true);
                 });
             } catch {
                 if (!cancelled) {
@@ -66,20 +89,20 @@ export default function GradcamAnnotationModal({
     }, [open, imageUrl, gradcamUrl]);
 
     useEffect(() => {
-        if (!open || !imageUrl) return;
+        if (!open || !imageUrl || !imageReady) return;
 
         let cancelled = false;
 
         async function redrawBaseWithOpacity() {
             try {
-                const baseImage = await loadCanvasImage(toAssetUrl(imageUrl));
-                const gradcamImage = gradcamUrl ? await loadCanvasImage(toAssetUrl(gradcamUrl)).catch(() => null) : null;
+                const baseImage = await loadFirstCanvasImage(imageUrl);
+                const gradcamImage = gradcamUrl ? await loadFirstCanvasImage(gradcamUrl).catch(() => null) : null;
                 if (!cancelled) {
                     paintBaseCanvas(baseCanvasRef.current, baseImage, gradcamImage, canvasSize, gradcamOpacity);
                 }
             } catch {
                 if (!cancelled) {
-                    setLoadError("Failed to refresh Grad-CAM opacity.");
+                    setLoadError("Failed to load clinical image for annotation.");
                 }
             }
         }
@@ -89,7 +112,7 @@ export default function GradcamAnnotationModal({
         return () => {
             cancelled = true;
         };
-    }, [gradcamOpacity, open]);
+    }, [gradcamOpacity, open, imageUrl, gradcamUrl, canvasSize, imageReady]);
 
     const getPoint = (event) => {
         const canvas = drawCanvasRef.current;
@@ -142,7 +165,7 @@ export default function GradcamAnnotationModal({
         const context = canvas?.getContext("2d");
         if (!context) return;
 
-        prepareDrawingContext(context, tool, brushSize);
+        prepareDrawingContext(context, tool, brushSize, brushColor);
         context.beginPath();
         context.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
         context.fill();
@@ -154,7 +177,7 @@ export default function GradcamAnnotationModal({
         const context = canvas?.getContext("2d");
         if (!context) return;
 
-        prepareDrawingContext(context, tool, brushSize);
+        prepareDrawingContext(context, tool, brushSize, brushColor);
         context.beginPath();
         context.moveTo(from.x, from.y);
         context.lineTo(to.x, to.y);
@@ -198,7 +221,7 @@ export default function GradcamAnnotationModal({
     return (
         <AnimatePresence>
             {open && (
-                <motion.div
+                <Motion.div
                     className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-6 py-8 backdrop-blur-sm"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -208,7 +231,7 @@ export default function GradcamAnnotationModal({
                     onMouseLeave={stopDrawing}
                     onTouchEnd={stopDrawing}
                 >
-                    <motion.div
+                    <Motion.div
                         className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
                         initial={{ opacity: 0, y: 18, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -309,6 +332,43 @@ export default function GradcamAnnotationModal({
                                     <p className="text-sm font-bold text-slate-700">{brushSize}px</p>
                                 </ControlGroup>
 
+                                <ControlGroup title="Brush Color">
+                                    <div className="grid grid-cols-6 gap-2">
+                                        {BRUSH_COLOR_OPTIONS.map((color) => (
+                                            <button
+                                                key={color.value}
+                                                type="button"
+                                                onClick={() => {
+                                                    setBrushColor(color.value);
+                                                    setTool("brush");
+                                                }}
+                                                className={`h-9 rounded-xl border transition ${
+                                                    brushColor.toLowerCase() === color.value.toLowerCase()
+                                                        ? "border-blue-600 ring-2 ring-blue-600/25"
+                                                        : "border-slate-200 hover:border-slate-400"
+                                                }`}
+                                                style={{ backgroundColor: color.value }}
+                                                aria-label={`Use ${color.label} brush`}
+                                                title={color.label}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={brushColor}
+                                            onChange={(event) => {
+                                                setBrushColor(event.target.value);
+                                                setTool("brush");
+                                            }}
+                                            className="h-10 w-12 cursor-pointer rounded-xl border border-slate-200 bg-white p-1"
+                                            aria-label="Choose custom brush color"
+                                        />
+                                        <p className="text-sm font-bold text-slate-700">{brushColor.toUpperCase()}</p>
+                                    </div>
+                                </ControlGroup>
+
                                 <ControlGroup title="Grad-CAM Opacity">
                                     <input
                                         type="range"
@@ -366,8 +426,8 @@ export default function GradcamAnnotationModal({
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
-                </motion.div>
+                    </Motion.div>
+                </Motion.div>
             )}
         </AnimatePresence>
     );
@@ -398,7 +458,7 @@ function ToolButton({ active, onClick, children }) {
     );
 }
 
-function prepareDrawingContext(context, tool, size) {
+function prepareDrawingContext(context, tool, size, color = DEFAULT_BRUSH_COLOR) {
     context.lineCap = "round";
     context.lineJoin = "round";
     context.lineWidth = size;
@@ -411,8 +471,27 @@ function prepareDrawingContext(context, tool, size) {
     }
 
     context.globalCompositeOperation = "source-over";
-    context.strokeStyle = "rgba(37, 99, 235, 0.75)";
-    context.fillStyle = "rgba(37, 99, 235, 0.75)";
+    const drawingColor = hexToRgba(color, 0.78);
+    context.strokeStyle = drawingColor;
+    context.fillStyle = drawingColor;
+}
+
+function hexToRgba(hex, alpha) {
+    const normalized = String(hex).replace("#", "");
+    const value = normalized.length === 3
+        ? normalized.split("").map((char) => `${char}${char}`).join("")
+        : normalized;
+
+    const numericValue = Number.parseInt(value, 16);
+    if (!Number.isFinite(numericValue)) {
+        return `rgba(37, 99, 235, ${alpha})`;
+    }
+
+    const red = (numericValue >> 16) & 255;
+    const green = (numericValue >> 8) & 255;
+    const blue = numericValue & 255;
+
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function getContainedSize(width, height) {
@@ -433,6 +512,63 @@ function loadCanvasImage(src) {
 
         const image = new Image();
         image.crossOrigin = "anonymous";
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = src;
+    });
+}
+
+async function loadFirstCanvasImage(path) {
+    const candidates = getAssetUrlCandidates(path);
+    let lastError;
+
+    for (const candidate of candidates) {
+        try {
+            return await loadCanvasImageFromFetch(candidate);
+        } catch (error) {
+            lastError = error;
+        }
+
+        try {
+            return await loadCanvasImage(candidate);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error("Image source is required.");
+}
+
+async function loadCanvasImageFromFetch(src) {
+    const headers = {};
+    const token = sessionStorage.getItem("token");
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(src, {
+        credentials: "include",
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Image request failed with status ${response.status}.`);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+        return await loadCanvasImageFromObjectUrl(objectUrl);
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+function loadCanvasImageFromObjectUrl(src) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = reject;
         image.src = src;

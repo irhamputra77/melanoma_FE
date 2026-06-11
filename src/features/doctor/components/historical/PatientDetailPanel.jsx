@@ -7,30 +7,29 @@ export default function PatientDetailPanel({ evolutionData, loading = false }) {
     const scans = evolutionData?.evolution || [];
 
     return (
-        <aside className="flex h-full min-h-0 flex-col border-l border-slate-200 pl-6">
-            <section className="shrink-0">
-                <div className="mb-4 flex items-center justify-between">
+        <aside className="rounded-2xl bg-white p-5 shadow-sm">
+            <section>
+                <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <h2 className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-700">
                         Patient Detail
                     </h2>
-                </div>
-
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">
-                    <img
-                        src={profileDoctor}
-                        alt={patient?.name || "Patient"}
-                        className="h-12 w-12 rounded-full object-cover"
-                    />
-                    <div>
-                        <p className="text-base font-extrabold leading-tight text-slate-900">{patient?.name || "-"}</p>
-                        <p className="text-xs text-slate-500">
-                            {patient ? `${patient.age} y.o. - ${patient.gender}` : "Select a patient"}
-                        </p>
+                    <div className="flex items-center gap-4 rounded-2xl bg-slate-50 px-4 py-3">
+                        <img
+                            src={profileDoctor}
+                            alt={patient?.name || "Patient"}
+                            className="h-12 w-12 rounded-full object-cover"
+                        />
+                        <div>
+                            <p className="text-base font-extrabold leading-tight text-slate-900">{patient?.name || "-"}</p>
+                            <p className="text-xs text-slate-500">
+                                {patient ? `${patient.age} y.o. - ${patient.gender}` : "Select a patient"}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <section className="mt-6 flex min-h-0 flex-1 flex-col">
+            <section className="mt-5">
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-700">
                         Lesion Evolution
@@ -53,10 +52,10 @@ export default function PatientDetailPanel({ evolutionData, loading = false }) {
                 )}
 
                 {!loading && scans.length > 0 && (
-                    <div className="relative min-h-[300px] flex-1 overflow-hidden">
-                        <div className="h-full overflow-y-auto pr-3">
-                            <div className="relative pl-8">
-                                <span className="absolute bottom-0 left-[3px] top-2 w-0.5 bg-blue-600" />
+                    <div className="relative overflow-hidden">
+                        <div className="overflow-x-auto pb-2">
+                            <div className="relative flex min-w-max gap-5 px-1 pt-8">
+                                <span className="absolute left-1 right-1 top-[14px] h-0.5 bg-blue-600" />
                                 {scans.map((scan, index) => (
                                     <TimelineScan
                                         key={scan.scanId}
@@ -66,8 +65,8 @@ export default function PatientDetailPanel({ evolutionData, loading = false }) {
                                 ))}
                             </div>
                         </div>
-                        <span className="pointer-events-none absolute inset-x-0 top-0 h-7 bg-gradient-to-b from-slate-100 to-transparent" />
-                        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-100 to-transparent" />
+                        <span className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent" />
+                        <span className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
                     </div>
                 )}
             </section>
@@ -87,13 +86,13 @@ function TimelineScan({ scan, muted }) {
         : scan.note;
 
     return (
-        <div className="relative pb-5">
-            <span className="absolute -left-8 top-1.5 h-2.5 w-2.5 rounded-full bg-blue-600" />
+        <div className="relative w-[220px] shrink-0">
+            <span className="absolute left-1/2 top-[-22px] h-3 w-3 -translate-x-1/2 rounded-full bg-blue-600 ring-4 ring-white" />
 
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-3 min-h-10">
                 <p className="text-[11px] font-extrabold uppercase text-slate-700">{month}</p>
                 {status && (
-                    <p className={`text-[10px] font-extrabold ${scan.growthPercentage ? "text-red-600" : "text-slate-400"}`}>
+                    <p className={`mt-1 text-[10px] font-extrabold ${scan.growthPercentage ? "text-red-600" : "text-slate-400"}`}>
                         {status}
                     </p>
                 )}
@@ -104,7 +103,7 @@ function TimelineScan({ scan, muted }) {
                     <img
                         src={toAssetUrl(scan.imageUrl)}
                         alt={scan.scanId}
-                        className="h-[190px] w-full rounded-lg object-cover"
+                        className="h-[150px] w-full rounded-lg object-cover"
                     />
                 ) : (
                     <LesionThumbnail variant={muted ? "pale" : "brown"} size="large" muted={muted} />

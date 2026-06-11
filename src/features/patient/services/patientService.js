@@ -51,8 +51,14 @@ export const uploadPatientScan = async (file, complaint, bodySite) => {
     return unwrap(response);
 };
 
-export const analyzePatientScan = async (scanId) => {
-    const response = await patientRequest({ method: "post", url: ENDPOINTS.PATIENT.SCAN_ANALYZE(scanId) });
+export const analyzePatientScan = async (scanId, config = {}) => {
+    if (!scanId) throw new Error("Upload response does not contain scan id.");
+
+    const response = await patientRequest({
+        method: "post",
+        url: ENDPOINTS.PATIENT.SCAN_ANALYZE(scanId),
+        ...config,
+    });
     return unwrap(response);
 };
 

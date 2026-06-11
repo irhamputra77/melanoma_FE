@@ -5,6 +5,9 @@ import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { analyzeGuestScan, getGuestScanResult } from '../services/guestService';
 
+const MIN_COMPLAINT_CHARACTERS = 10;
+const isComplaintTooShort = (value = '') => value.replace(/\s/g, '').length < MIN_COMPLAINT_CHARACTERS;
+
 const GuestDetectionPage = () => {
     const navigate = useNavigate();
 
@@ -168,8 +171,8 @@ const GuestDetectionPage = () => {
             return;
         }
 
-        if (complaint.trim().length < 5) {
-            setErrorMessage('Keluhan (Complaint) minimal terdiri dari 5 karakter.');
+        if (isComplaintTooShort(complaint)) {
+            setErrorMessage('Complaint must be at least 10 characters');
             return;
         }
 

@@ -25,24 +25,31 @@ export default function AssignedCaseList({
                     </div>
                 )}
 
-                {!loading && cases.map((item) => (
-                    <AssignedCaseCard
-                        key={item.caseId}
-                        item={mapAssignedCase(item)}
-                        active={item.caseId === selectedCaseId}
-                        onClick={() => onSelectCase?.(item.caseId)}
-                    />
-                ))}
+                {!loading && cases.map((item) => {
+                    const mappedCase = mapAssignedCase(item);
+
+                    return (
+                        <AssignedCaseCard
+                            key={mappedCase.caseId}
+                            item={mappedCase}
+                            active={mappedCase.caseId === selectedCaseId}
+                            onClick={() => onSelectCase?.(mappedCase.caseId)}
+                        />
+                    );
+                })}
             </div>
         </div>
     );
 }
 
 function mapAssignedCase(item) {
+    const caseId = item.caseId || item.id || item.requestId || item.scanId;
+
     return {
         ...item,
-        name: item.patientName,
-        id: `#${item.caseId}`,
+        caseId,
+        name: item.patientName || item.name || "Patient",
+        id: `#${caseId}`,
         time: formatRelativeTime(item.receivedAt),
         urgent: item.status === "pending_review",
     };

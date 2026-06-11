@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import CaseHistoryTable from "../components/historical/CaseHistoryTable";
 import HistoricalCaseControls from "../components/historical/HistoricalCaseControls";
 import PatientDetailPanel from "../components/historical/PatientDetailPanel";
@@ -30,8 +30,6 @@ export default function HistoricalCasePage() {
     const [actionLoading, setActionLoading] = useState("");
     const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
-    const leftColumnRef = useRef(null);
-    const [detailPanelHeight, setDetailPanelHeight] = useState(0);
     const totalPages = Math.max(1, Math.ceil(Number(meta.total || 0) / Number(meta.limit || filters.limit || 5)));
     const currentPage = Number(meta.page || filters.page || 1);
 
@@ -112,27 +110,6 @@ export default function HistoricalCasePage() {
         };
     }, [selectedCase]);
 
-    useEffect(() => {
-        const element = leftColumnRef.current;
-        if (!element) return undefined;
-
-        const updateHeight = () => {
-            setDetailPanelHeight(Math.max(420, Math.ceil(element.getBoundingClientRect().height)));
-        };
-
-        updateHeight();
-
-        if (typeof ResizeObserver === "undefined") {
-            window.addEventListener("resize", updateHeight);
-            return () => window.removeEventListener("resize", updateHeight);
-        }
-
-        const observer = new ResizeObserver(updateHeight);
-        observer.observe(element);
-
-        return () => observer.disconnect();
-    }, [cases.length, loading, filters.limit, currentPage, totalPages]);
-
     const updateFilters = (nextFilters) => {
         setLoading(true);
         setFilters((current) => ({
@@ -198,8 +175,8 @@ export default function HistoricalCasePage() {
                 </div>
             )}
 
-            <div className="grid grid-cols-12 gap-6">
-                <div ref={leftColumnRef} className="col-span-12 2xl:col-span-9">
+            <div className="space-y-6">
+                <div>
                     <HistoricalCaseControls
                         filters={filters}
                         onFilterChange={updateFilters}
@@ -253,12 +230,7 @@ export default function HistoricalCasePage() {
                     </div>
                 </div>
 
-                <div
-                    className="col-span-12 2xl:col-span-3 2xl:h-[var(--history-detail-height)]"
-                    style={{
-                        "--history-detail-height": detailPanelHeight ? `${detailPanelHeight}px` : "auto",
-                    }}
-                >
+                <div>
                     <PatientDetailPanel
                         evolutionData={evolutionData}
                         loading={evolutionLoading}
