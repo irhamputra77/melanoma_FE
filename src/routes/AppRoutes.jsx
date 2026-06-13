@@ -27,9 +27,9 @@ import HistoricalDetailPage from "../features/patient/pages/HistoricalDetailPage
 import HistoricalListPage from "../features/patient/pages/HistoricalListPage";
 import ProfilePage from "../features/patient/pages/ProfilePage";
 
-// IMPORT SEMENTARA (Akan error jika file belum dibuat di Tahap 3, abaikan dulu error-nya)
 import PatientMessageRouter from "../features/patient/pages/PatientMessageRouter";
 import PatientChatPage from "../features/patient/pages/PatientChatPage";
+import PatientChatBotPage from "../features/patient/pages/PatientChatBotPage";
 
 import AdminDashboardPage from "../features/admin/pages/AdminDashboardPage";
 import AdminProfilePage from "../features/admin/pages/AdminProfilePage";
@@ -58,9 +58,9 @@ const dashboardRoutes = {
         settings: <SystemSettingsPatient />,
         profile: <ProfilePage />,
         
-        // ===== ROUTE BARU UNTUK CHAT =====
         messages: <PatientMessageRouter />, 
-        "messages-detail": <PatientChatPage />
+        "messages-detail": <PatientChatPage />,
+        "chatbot-detail": <PatientChatBotPage />
     },
     admin: {
         dashboard: <AdminDashboardPage />,
@@ -114,7 +114,7 @@ export default function AppRoutes() {
                 <Route path="settings" element={<RolePage page="settings" />} />
                 <Route path="messages" element={<RolePage page="messages" />} />
                 <Route path="messages/:id" element={<RolePage page="messages-detail" />} />
-                <Route path="messages" element={<RolePage page="messages" />} />
+                <Route path="chatbot/:id" element={<RolePage page="chatbot-detail" />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

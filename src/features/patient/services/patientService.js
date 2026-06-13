@@ -409,3 +409,31 @@ function getFileNameFromDisposition(disposition = "") {
     const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
     return match ? decodeURIComponent(match[1]) : "";
 }
+
+// ==================== AI CHATBOT ====================
+
+// Tambahkan/Ubah di bagian paling bawah patientService.js
+export const getAiChatHistory = async (consultationId) => {
+    try {
+        const response = await patientRequest({ 
+            method: "get", 
+            url: `/ai-consultations/${consultationId}/messages` 
+        });
+        return response.data?.data || response.data || response;
+    } catch (error) {
+        // TANGKAP ERROR 404: Sesi AI belum dibuat di database
+        if (error.response && error.response.status === 404) {
+            return []; // Kembalikan array kosong agar UI tampil bersih
+        }
+        throw error;
+    }
+};
+
+export const sendAiChatMessage = async (consultationId, message) => {
+    const response = await patientRequest({ 
+        method: "post", 
+        url: `/ai-consultations/${consultationId}/messages`, 
+        data: { message } 
+    });
+    return response.data?.data || response.data || response;
+};
