@@ -181,6 +181,86 @@ describe('doctorService.getCaseHistory', () => {
     ]);
   });
 
+  it('normalizes assigned verification requests with the request-linked scan fields', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            id: 'verification-request-db-id',
+            requestId: 'VER-1781411051110',
+            patientScanId: '1d9bc34c-2c14-4c27-a9bf-b30c334aa540',
+            caseId: 'SCN-178141105111',
+            scanId: 'SCN-178141105111',
+            detailCaseId: 'SCN-178141105111',
+            actionCaseId: 'SCN-178141105111',
+            patientName: 'Irham Kurnia Putra',
+            status: 'pending',
+            receivedAt: '2026-06-14T03:35:00.000Z',
+            imageUrl: '/uploads/scan_1781411051110.jpg',
+            bodySite: 'kepala',
+            complaint: 'gatal gatal gatal gatal',
+          },
+        ],
+      },
+    });
+
+    const result = await getAssignedCases();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        requestId: 'VER-1781411051110',
+        patientScanId: '1d9bc34c-2c14-4c27-a9bf-b30c334aa540',
+        caseId: 'SCN-178141105111',
+        scanId: 'SCN-178141105111',
+        clinicalImageUrl: '/uploads/scan_1781411051110.jpg',
+        scanImageUrl: '/uploads/scan_1781411051110.jpg',
+        bodySite: 'kepala',
+        complaint: 'gatal gatal gatal gatal',
+        status: 'pending_review',
+      }),
+    ]);
+  });
+
+  it('filters completed assigned cases from the doctor dashboard queue', async () => {
+    api.request.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            id: 'pending-request',
+            caseId: 'SCN-pending',
+            scanId: 'SCN-pending',
+            patientName: 'Pending Patient',
+            status: 'pending',
+          },
+          {
+            id: 'approved-request',
+            caseId: 'SCN-approved',
+            scanId: 'SCN-approved',
+            patientName: 'Approved Patient',
+            status: 'approved',
+          },
+          {
+            id: 'rejected-request',
+            caseId: 'SCN-rejected',
+            scanId: 'SCN-rejected',
+            patientName: 'Rejected Patient',
+            status: 'rejected',
+          },
+        ],
+      },
+    });
+
+    const result = await getAssignedCases();
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(expect.objectContaining({
+      caseId: 'SCN-pending',
+      status: 'pending_review',
+    }));
+  });
+
   it('prioritizes detailCaseId over requestId for assigned verification request detail links', async () => {
     api.request.mockResolvedValue({
       data: {

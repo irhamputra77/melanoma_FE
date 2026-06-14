@@ -10,7 +10,7 @@ import {
   analyzePatientScan,
   getRecentScans,
   getAvailableDoctors,
-  sharePatientScan // Dikembalikan untuk fitur Request Verification
+  submitVerificationRequest,
 } from '../services/patientService';
 
 const formatDate = (dateString) => {
@@ -51,6 +51,7 @@ const PatientDashboardPage = () => {
   const [complaint, setComplaint] = useState('');
 
   const [currentScanId, setCurrentScanId] = useState(null);
+  const [currentScanDisplayId, setCurrentScanDisplayId] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
   
@@ -116,12 +117,17 @@ const PatientDashboardPage = () => {
   const handleFileInput = (e) => {
     setErrorMessage('');
     setSuccessMessage('');
+    setVerificationError('');
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (!['image/jpeg', 'image/png'].includes(file.type)) {
         setErrorMessage('Format file tidak didukung. Harap unggah format JPG atau PNG.');
         return;
       }
+      setCurrentScanId(null);
+      setCurrentScanDisplayId(null);
+      setAnalysisResult(null);
+      setSelectedDoctorId('');
       setSelectedFile(file);
       if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
       setImagePreviewUrl(URL.createObjectURL(file));
@@ -137,10 +143,16 @@ const PatientDashboardPage = () => {
     setIsCropping(false);
     setBodySite('');
     setComplaint('');
+    setCurrentScanId(null);
+    setCurrentScanDisplayId(null);
+    setAnalysisResult(null);
     setViewState('upload');
     setErrorMessage('');
     setVerificationError('');
     setSelectedDoctorId('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSaveCrop = async () => {
@@ -180,13 +192,19 @@ const PatientDashboardPage = () => {
     setErrorMessage('');
 
     try {
-      let scanId = currentScanId;
+      setCurrentScanId(null);
+      setCurrentScanDisplayId(null);
+      setAnalysisResult(null);
+
+      const uploadData = await uploadPatientScan(selectedFile, complaint, bodySite);
+      const scanId = uploadData.id || uploadData.scanId;
+      const scanDisplayId = uploadData.scanId || uploadData.id;
       if (!scanId) {
-        const uploadData = await uploadPatientScan(selectedFile, complaint, bodySite);
-        scanId = uploadData.id || uploadData.scanId;
-        setCurrentScanId(scanId);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        throw new Error('Upload berhasil, tetapi ID scan tidak ditemukan.');
       }
+      setCurrentScanId(scanId);
+      setCurrentScanDisplayId(scanDisplayId);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const rawResultData = await analyzePatientScan(scanId);
       const resultData = rawResultData?.analysis || rawResultData?.data || rawResultData;
@@ -213,17 +231,23 @@ const PatientDashboardPage = () => {
     setSuccessMessage('');
 
     try {
-      await sharePatientScan(currentScanId, { doctorUserId: selectedDoctorId });
+      await submitVerificationRequest({
+        doctorUserId: selectedDoctorId,
+        doctorId: selectedDoctorId,
+        scanId: currentScanId,
+        patientScanId: currentScanId,
+      });
       setSuccessMessage('Permintaan verifikasi berhasil dikirim ke Dokter. Anda akan diberi notifikasi.');
-      setTimeout(() => {
-        handleDeleteImage();
-        setSuccessMessage('');
-      }, 4000);
     } catch (error) {
       setVerificationError(error.response?.data?.message || 'Gagal mengirim permintaan verifikasi.');
     } finally {
       setIsRequesting(false);
     }
+  };
+
+  const handleCloseSuccessPopup = () => {
+    handleDeleteImage();
+    setSuccessMessage('');
   };
 
   let confValue = Number(analysisResult?.aiConfidence || analysisResult?.confidence || 0);
@@ -242,8 +266,6 @@ const PatientDashboardPage = () => {
             <h2 className="text-xl font-bold text-gray-900">New Detection</h2>
             <span className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-full">AI POWERED</span>
           </div>
-
-          {successMessage && <p className="mb-4 text-sm text-green-600 bg-green-50 p-3 rounded-lg font-medium">{successMessage}</p>}
 
           <div className={`relative rounded-2xl bg-gray-50 flex flex-col items-center justify-center mb-4 ${viewState === 'upload'
               ? 'border-2 border-dashed border-gray-200 h-72 overflow-hidden'
@@ -351,7 +373,7 @@ const PatientDashboardPage = () => {
                 <span className={`text-xs font-bold px-3 py-1 rounded-full ${safeRisk === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                   {safeRisk} RISK
                 </span>
-                <span className="text-gray-500 text-xs font-medium">ID: #{currentScanId?.substring(0, 6).toUpperCase()}</span>
+                <span className="text-gray-500 text-xs font-medium">ID: #{currentScanDisplayId || currentScanId?.substring(0, 6).toUpperCase()}</span>
               </div>
               <h2 className="text-2xl font-extrabold text-gray-900 mb-1">{safeClass}</h2>
               <div className="flex items-baseline space-x-2 mb-4">
@@ -435,6 +457,29 @@ const PatientDashboardPage = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #E5E7EB; border-radius: 20px; }
       ` }} />
+
+      {successMessage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-extrabold text-gray-900">Request Sent</h3>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-gray-600">
+              {successMessage}
+            </p>
+            <button
+              type="button"
+              onClick={handleCloseSuccessPopup}
+              className="mt-6 w-full rounded-2xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-blue-700"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

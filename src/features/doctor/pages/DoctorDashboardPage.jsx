@@ -8,7 +8,6 @@ import {
     getCaseDetails,
     getDoctorDashboardSummary,
     rejectCase,
-    savePhysicianObservation,
     uploadCaseAnnotation,
 } from "../services/doctorService";
 
@@ -43,7 +42,7 @@ export default function DoctorDashboardPage() {
             })
             .catch((error) => {
                 if (isMounted) {
-                    setError(error.response?.data?.message || "Failed to fetch doctor dashboard.");
+                    setError(getDoctorDashboardErrorMessage(error, "Failed to fetch doctor dashboard."));
                 }
             })
             .finally(() => {
@@ -76,7 +75,7 @@ export default function DoctorDashboardPage() {
                 })
                 .catch((error) => {
                     if (isMounted) {
-                        setError(error.response?.data?.message || "Failed to refresh assigned cases.");
+                        setError(getDoctorDashboardErrorMessage(error, "Failed to refresh assigned cases."));
                     }
                 });
         };
@@ -107,7 +106,7 @@ export default function DoctorDashboardPage() {
             setCaseDetails(null);
             setObservation("");
             setCaseLoading(false);
-            setError("Assigned case is missing an identifier from the backend response. Cannot load case detail yet.");
+            setError("We could not open this case because its case ID is missing. Please refresh the dashboard and try again.");
             return;
         }
 
@@ -125,14 +124,15 @@ export default function DoctorDashboardPage() {
             .then((data) => {
                 if (!isMounted || detailRequestRef.current !== requestId) return;
 
+                const normalizedData = mergeAssignedCaseFallback(data, selectedAssignedCase);
                 loadedDetailCaseIdRef.current = detailCaseId;
-                setCaseDetails(data);
-                setObservation(data?.physicianObservation || "");
+                setCaseDetails(normalizedData);
+                setObservation(normalizedData?.physicianObservation || "");
                 setError("");
             })
             .catch((error) => {
                 if (isMounted && detailRequestRef.current === requestId) {
-                    setError(error.response?.data?.message || "Failed to fetch case details.");
+                    setError(getDoctorDashboardErrorMessage(error, "Failed to fetch case details."));
                 }
             })
             .finally(() => {
@@ -145,28 +145,6 @@ export default function DoctorDashboardPage() {
             isMounted = false;
         };
     }, [selectedCaseId, assignedCases]);
-
-    const handleSaveObservation = async () => {
-        if (!caseDetails?.caseId) return;
-
-        setActionLoading("save");
-
-        try {
-            await runCaseActionWithFallback(
-                savePhysicianObservation,
-                getActionCaseIds(caseDetails, findAssignedCase(assignedCases, selectedCaseId)),
-                observation,
-            );
-            setCaseDetails((current) => ({
-                ...current,
-                physicianObservation: observation,
-            }));
-        } catch (error) {
-            setError(error.response?.data?.message || "Failed to save observation.");
-        } finally {
-            setActionLoading("");
-        }
-    };
 
     const handleSaveAnnotation = async (file) => {
         if (!caseDetails?.caseId || !file) return;
@@ -197,7 +175,7 @@ export default function DoctorDashboardPage() {
             setCaseDetails(refreshedCase);
             setObservation(refreshedCase?.physicianObservation || observation);
         } catch (error) {
-            setError(error.response?.data?.message || error.message || "Failed to save annotation.");
+            setError(getDoctorDashboardErrorMessage(error, "Failed to save annotation."));
             throw error;
         } finally {
             setActionLoading("");
@@ -207,25 +185,32 @@ export default function DoctorDashboardPage() {
     const handleApprove = async () => {
         if (!caseDetails?.caseId) return;
 
+        const currentObservation = observation.trim();
+        if (!currentObservation) {
+            setError("Please add your physician observation before approving this case.");
+            return;
+        }
+
         const finalDiagnosis = caseDetails.aiPrediction?.predictions?.[0]?.label || "Approved";
         const selectedAssignedCase = findAssignedCase(assignedCases, selectedCaseId);
+        const actionCaseIds = getActionCaseIds(caseDetails, selectedAssignedCase);
         setActionLoading("approve");
 
         try {
             await runCaseActionWithFallback(
                 approveCase,
-                getActionCaseIds(caseDetails, selectedAssignedCase),
+                actionCaseIds,
                 {
-                    physicianObservation: observation,
+                    physicianObservation: currentObservation,
                     finalDiagnosis,
                 },
             );
-            const removeIds = getActionCaseIds(caseDetails, selectedAssignedCase);
-            const nextCases = assignedCases.filter((item) => !removeIds.includes(item.caseId));
+            const removeIds = actionCaseIds;
+            const nextCases = assignedCases.filter((item) => !caseMatchesAnyId(item, removeIds));
             setAssignedCases(nextCases);
             setSelectedCaseId(nextCases[0]?.caseId || "");
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to approve case.");
+            setError(getDoctorDashboardErrorMessage(error, "Failed to approve case."));
         } finally {
             setActionLoading("");
         }
@@ -234,26 +219,33 @@ export default function DoctorDashboardPage() {
     const handleReject = async () => {
         if (!caseDetails?.caseId) return;
 
+        const currentObservation = observation.trim();
+        if (!currentObservation) {
+            setError("Please add your physician observation before rejecting this case.");
+            return;
+        }
+
         const finalDiagnosis = caseDetails.aiPrediction?.predictions?.[1]?.label || "Rejected";
         const selectedAssignedCase = findAssignedCase(assignedCases, selectedCaseId);
+        const actionCaseIds = getActionCaseIds(caseDetails, selectedAssignedCase);
         setActionLoading("reject");
 
         try {
             await runCaseActionWithFallback(
                 rejectCase,
-                getActionCaseIds(caseDetails, selectedAssignedCase),
+                actionCaseIds,
                 {
                     reason: "False positive prediction",
-                    physicianObservation: observation,
+                    physicianObservation: currentObservation,
                     finalDiagnosis,
                 },
             );
-            const removeIds = getActionCaseIds(caseDetails, selectedAssignedCase);
-            const nextCases = assignedCases.filter((item) => !removeIds.includes(item.caseId));
+            const removeIds = actionCaseIds;
+            const nextCases = assignedCases.filter((item) => !caseMatchesAnyId(item, removeIds));
             setAssignedCases(nextCases);
             setSelectedCaseId(nextCases[0]?.caseId || "");
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to reject case.");
+            setError(getDoctorDashboardErrorMessage(error, "Failed to reject case."));
         } finally {
             setActionLoading("");
         }
@@ -273,7 +265,7 @@ export default function DoctorDashboardPage() {
 
     return (
         <div>
-            {error && (
+            {error && !caseDetails && (
                 <div className="mb-6 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600">
                     {error}
                 </div>
@@ -296,8 +288,11 @@ export default function DoctorDashboardPage() {
                         caseDetails={caseDetails}
                         loading={caseLoading}
                         observation={observation}
-                        onObservationChange={setObservation}
-                        onSaveObservation={handleSaveObservation}
+                        observationError={caseDetails ? error : ""}
+                        onObservationChange={(value) => {
+                            setObservation(value);
+                            setError("");
+                        }}
                         onSaveAnnotation={handleSaveAnnotation}
                         onApprove={handleApprove}
                         onReject={handleReject}
@@ -332,6 +327,21 @@ function getActionCaseIds(caseDetails, assignedCase) {
     ]);
 }
 
+function caseMatchesAnyId(caseItem, ids) {
+    const itemIds = uniqueValues([
+        caseItem?.actionCaseId,
+        caseItem?.detailCaseId,
+        caseItem?.caseId,
+        caseItem?.scanId,
+        caseItem?.patientScanId,
+        caseItem?.requestId,
+        caseItem?.verificationRequestId,
+        caseItem?.id,
+    ]);
+
+    return itemIds.some((id) => ids.includes(id));
+}
+
 async function runCaseActionWithFallback(action, caseIds, payload) {
     let lastError;
 
@@ -353,4 +363,109 @@ async function runCaseActionWithFallback(action, caseIds, payload) {
 
 function uniqueValues(values) {
     return [...new Set(values.filter((value) => value !== undefined && value !== null && value !== ""))];
+}
+
+function mergeAssignedCaseFallback(caseDetails = {}, assignedCase = {}) {
+    if (!assignedCase) return caseDetails;
+
+    const imageUrl = firstDefined(
+        caseDetails?.clinicalImage?.imageUrl,
+        assignedCase.clinicalImageUrl,
+        assignedCase.scanImageUrl,
+        assignedCase.imageUrl,
+    );
+    const gradcamUrl = firstDefined(
+        caseDetails?.aiPrediction?.gradcamUrl,
+        assignedCase.gradcamUrl,
+        assignedCase.gradcamImageUrl,
+    );
+    const annotatedImageUrl = firstDefined(
+        caseDetails?.clinicalImage?.annotatedImageUrl,
+        assignedCase.annotatedImageUrl,
+        assignedCase.annotationImageUrl,
+        assignedCase.editedGradcamImageUrl,
+    );
+
+    return {
+        ...assignedCase,
+        ...caseDetails,
+        patientScanId: firstDefined(caseDetails.patientScanId, assignedCase.patientScanId),
+        scanId: firstDefined(caseDetails.scanId, assignedCase.scanId),
+        requestId: firstDefined(caseDetails.requestId, assignedCase.requestId),
+        receivedAt: firstDefined(caseDetails.receivedAt, assignedCase.receivedAt),
+        patient: {
+            ...(assignedCase.patient || {}),
+            ...(caseDetails.patient || {}),
+            name: firstDefined(caseDetails.patient?.name, assignedCase.patientName),
+        },
+        clinicalImage: {
+            ...(caseDetails.clinicalImage || {}),
+            ...(imageUrl ? { imageUrl } : {}),
+            ...(annotatedImageUrl ? { annotatedImageUrl } : {}),
+            bodySite: firstDefined(caseDetails.clinicalImage?.bodySite, assignedCase.bodySite),
+            complaint: firstDefined(caseDetails.clinicalImage?.complaint, assignedCase.complaint),
+        },
+        aiPrediction: {
+            ...(caseDetails.aiPrediction || {}),
+            ...(gradcamUrl ? { gradcamUrl } : {}),
+        },
+        patientNotes: firstDefined(caseDetails.patientNotes, assignedCase.complaint),
+    };
+}
+
+function firstDefined(...values) {
+    return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function getDoctorDashboardErrorMessage(error, fallback) {
+    const payload = error?.response?.data;
+    const rawMessage = [
+        payload?.message,
+        payload?.error,
+        error?.message,
+    ].filter(Boolean).join(" ");
+    const normalizedMessage = rawMessage.toLowerCase();
+
+    if (
+        normalizedMessage.includes("physicianobservation") ||
+        normalizedMessage.includes("physician observation") ||
+        normalizedMessage.includes("observation is required") ||
+        normalizedMessage.includes("observation required")
+    ) {
+        return "Please add your physician observation before saving or completing this case.";
+    }
+
+    if (normalizedMessage.includes("network")) {
+        return "We could not connect to the server. Please check your connection and try again.";
+    }
+
+    if (fallback === "Failed to fetch doctor dashboard.") {
+        return "We could not load your dashboard right now. Please refresh the page and try again.";
+    }
+
+    if (fallback === "Failed to refresh assigned cases.") {
+        return "We could not refresh your assigned cases. The current list may be slightly out of date.";
+    }
+
+    if (fallback === "Failed to fetch case details.") {
+        return "We could not load this case detail. Please select the case again or refresh the page.";
+    }
+
+    if (fallback === "Failed to save observation.") {
+        return "We could not save your observation. Please try again.";
+    }
+
+    if (fallback === "Failed to save annotation.") {
+        return "We could not save the annotation image. Please try again.";
+    }
+
+    if (fallback === "Failed to approve case.") {
+        return "Please add your physician observation before approving this case.";
+    }
+
+    if (fallback === "Failed to reject case.") {
+        return "Please add your physician observation before rejecting this case.";
+    }
+
+    return rawMessage || fallback || "Something went wrong. Please try again.";
 }

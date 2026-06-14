@@ -15,8 +15,8 @@ export const getAssignedCases = async () => {
     const response = await doctorRequest({ method: "get", url: ENDPOINTS.DOCTOR.ASSIGNED_CASES });
     const payload = unwrap(response);
 
-    if (Array.isArray(payload)) return payload.map(normalizeAssignedCase).filter((item) => item.caseId);
-    if (Array.isArray(payload?.data)) return payload.data.map(normalizeAssignedCase).filter((item) => item.caseId);
+    if (Array.isArray(payload)) return payload.map(normalizeAssignedCase).filter(isOpenAssignedCase);
+    if (Array.isArray(payload?.data)) return payload.data.map(normalizeAssignedCase).filter(isOpenAssignedCase);
 
     return [];
 };
@@ -207,7 +207,8 @@ function normalizeAssignedCase(item = {}) {
     const patient = item.patient || item.user || item.patientUser || item.scan?.patient || {};
     const scan = item.scan || item.patientScan || item.scanData || {};
     const requestId = firstDefined(item.verificationRequestId, item.requestId, item.id);
-    const scanId = firstDefined(item.scanId, scan.scanId, scan.id);
+    const patientScanId = firstDefined(item.patientScanId, scan.id);
+    const scanId = firstDefined(item.scanId, scan.scanId, patientScanId);
     const actionCaseId = firstDefined(item.actionCaseId, item.detailCaseId, item.caseId, scan.scanId, scan.id, requestId);
     const detailCaseId = firstDefined(
         item.detailCaseId,
@@ -242,7 +243,7 @@ function normalizeAssignedCase(item = {}) {
         patient.profilePhotoUrl,
         patient.photoUrl,
     );
-    const scanImageUrl = firstDefined(item.scanImageUrl, item.clinicalImageUrl, scan.imageUrl, scan.scanImageUrl);
+    const scanImageUrl = firstDefined(item.scanImageUrl, item.imageUrl, item.clinicalImageUrl, scan.imageUrl, scan.scanImageUrl);
     const gradcamImageUrl = firstDefined(item.gradcamImageUrl, item.gradCamImageUrl, item.gradcamUrl, item.heatmapUrl, scan.gradcamUrl);
     const annotatedImageUrl = firstDefined(
         item.annotatedImageUrl,
@@ -259,10 +260,13 @@ function normalizeAssignedCase(item = {}) {
         detailCaseId,
         actionCaseId,
         requestId,
+        patientScanId,
         scanId,
         patientName,
         receivedAt,
         avatarUrl,
+        bodySite: firstDefined(item.bodySite, scan.bodySite),
+        complaint: firstDefined(item.complaint, scan.complaint),
         ...(scanImageUrl ? { scanImageUrl, clinicalImageUrl: scanImageUrl } : {}),
         ...(gradcamImageUrl ? { gradcamImageUrl, gradcamUrl: gradcamImageUrl } : {}),
         ...(annotatedImageUrl ? { annotatedImageUrl, annotationImageUrl: annotatedImageUrl, editedGradcamImageUrl: annotatedImageUrl } : {}),
@@ -277,6 +281,10 @@ function normalizeAssignedCaseStatus(status) {
     if (["approved", "verified"].includes(value)) return "verified";
 
     return value || "pending_review";
+}
+
+function isOpenAssignedCase(item) {
+    return Boolean(item.caseId) && ["pending_review", "under_review"].includes(item.status);
 }
 
 function firstDefined(...values) {

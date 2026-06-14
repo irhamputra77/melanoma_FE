@@ -12,7 +12,7 @@ import {
     ShieldCheck,
     UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -56,6 +56,7 @@ export default function DashboardLayout() {
     const isAdmin = role === "admin";
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
+    const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [notificationsError, setNotificationsError] = useState("");
 
@@ -82,28 +83,47 @@ export default function DashboardLayout() {
         name: "Dr. Elena Aris",
         title: "Senior Dermatologist",
     };
-    const unreadCount = useMemo(
-        () => notifications.filter((notification) => !isNotificationRead(notification)).length,
-        [notifications]
-    );
+    const unreadCount = notificationUnreadCount;
 
     const fetchNotifications = useCallback(async () => {
+        const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+        const storedRole = sessionStorage.getItem("role") || localStorage.getItem("role");
+
+        if (!token || storedRole !== role || !["doctor", "admin"].includes(role)) return;
+
         setNotificationsLoading(true);
         setNotificationsError("");
 
         try {
             const response = await getRoleNotifications(role, { page: 1, limit: 5 });
             setNotifications(Array.isArray(response.data) ? response.data : []);
+            setNotificationUnreadCount(Number(response.unreadCount || 0));
         } catch (error) {
+            if (error.response?.status === 401) {
+                clearAuthSession();
+                navigate("/auth/login", { replace: true });
+                return;
+            }
+
             setNotificationsError(error.response?.data?.message || error.message || "Failed to fetch notifications.");
         } finally {
             setNotificationsLoading(false);
         }
-    }, [role]);
+    }, [navigate, role]);
 
     useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
+
+    useEffect(() => {
+        if (role !== "doctor") return undefined;
+
+        const intervalId = window.setInterval(fetchNotifications, 15_000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [fetchNotifications, role]);
 
     useEffect(() => {
         if (!isAdmin) return;
@@ -157,41 +177,61 @@ export default function DashboardLayout() {
         if (unreadCount === 0) return;
 
         const previousNotifications = notifications;
+        const previousUnreadCount = notificationUnreadCount;
         setNotifications((current) => current.map(markNotificationReadLocally));
+        setNotificationUnreadCount(0);
         setNotificationsError("");
 
         try {
             await markAllRoleNotificationsAsRead(role);
-            await fetchNotifications();
         } catch (error) {
+            if (error.response?.status === 401) {
+                clearAuthSession();
+                navigate("/auth/login", { replace: true });
+                return;
+            }
+
             setNotifications(previousNotifications);
+            setNotificationUnreadCount(previousUnreadCount);
             setNotificationsError(error.response?.data?.message || "Failed to mark notifications as read.");
         }
     };
 
     const handleNotificationClick = async (notification) => {
         const notificationId = getNotificationId(notification);
-        if (!notificationId || isNotificationRead(notification)) return;
+        const wasUnread = !isNotificationRead(notification);
 
-        setNotifications((current) =>
-            current.map((item) =>
-                getNotificationId(item) === notificationId ? markNotificationReadLocally(item) : item
-            )
-        );
+        if (notificationId && wasUnread) {
+            setNotifications((current) =>
+                current.map((item) =>
+                    getNotificationId(item) === notificationId ? markNotificationReadLocally(item) : item
+                )
+            );
+            setNotificationUnreadCount((current) => Math.max(current - 1, 0));
 
-        try {
-            await markRoleNotificationAsRead(role, notificationId);
-        } catch (error) {
-            setNotificationsError(error.response?.data?.message || "Failed to mark notification as read.");
-            fetchNotifications();
+            try {
+                await markRoleNotificationAsRead(role, notificationId);
+            } catch (error) {
+                if (error.response?.status === 401) {
+                    clearAuthSession();
+                    navigate("/auth/login", { replace: true });
+                    return;
+                }
+
+                setNotificationsError(error.response?.data?.message || "Failed to mark notification as read.");
+                fetchNotifications();
+            }
+        }
+
+        const targetPath = getNotificationTargetPath(role, notification);
+        if (targetPath) {
+            setNotificationsOpen(false);
+            navigateWithTransition(targetPath);
         }
     };
 
     const handleLogout = () => {
-        sessionStorage.removeItem("token");
-        sessionStorage.removeItem("role");
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
+        clearAuthSession();
         navigate("/auth/login", { replace: true });
     };
 
@@ -287,7 +327,9 @@ export default function DashboardLayout() {
                             >
                                 <Bell size={20} />
                                 {unreadCount > 0 && (
-                                    <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-600" />
+                                    <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-blue-600 px-1 text-[10px] font-extrabold leading-none text-white">
+                                        {unreadCount > 99 ? "99+" : unreadCount}
+                                    </span>
                                 )}
                             </button>
 
@@ -402,20 +444,23 @@ function NotificationPopover({
 
 function NotificationItem({ notification, onClick }) {
     const isRead = isNotificationRead(notification);
-    const isAnalysis = isAnalysisNotification(notification);
+    const Icon = getNotificationIcon(notification);
 
     return (
         <button
             type="button"
             onClick={onClick}
-            className={`flex w-full gap-4 border-b border-slate-100 px-5 py-5 text-left transition hover:bg-slate-50 ${isRead ? "opacity-70" : ""}`}
+            className={`flex w-full gap-4 border-b border-slate-100 px-5 py-5 text-left transition hover:bg-slate-50 ${isRead ? "opacity-70" : "bg-blue-50/40"}`}
         >
             <span className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${getNotificationTone(notification)}`}>
-                {isAnalysis ? <ActivitySquare size={20} /> : <BadgeCheck size={20} />}
+                <Icon size={20} />
             </span>
             <span className="min-w-0">
-                <span className="block text-base font-extrabold leading-tight text-slate-950">
-                    {getNotificationTitle(notification)}
+                <span className="flex items-start gap-2">
+                    {!isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-600" />}
+                    <span className="block text-base font-extrabold leading-tight text-slate-950">
+                        {getNotificationTitle(notification)}
+                    </span>
                 </span>
                 <span className="mt-1 block text-sm leading-relaxed text-slate-500">
                     {getNotificationMessage(notification)}
@@ -458,7 +503,27 @@ function isAnalysisNotification(notification) {
     return source.includes("scan") || source.includes("analysis");
 }
 
+function getNotificationIcon(notification) {
+    const type = String(notification?.type || "").toLowerCase();
+
+    if (type === "system_message") return MessageSquare;
+    if (type === "verification_alert") return BadgeCheck;
+    if (isAnalysisNotification(notification)) return ActivitySquare;
+
+    return BadgeCheck;
+}
+
 function getNotificationTone(notification) {
+    const type = String(notification?.type || "").toLowerCase();
+
+    if (type === "system_message") {
+        return "bg-blue-50 text-blue-600";
+    }
+
+    if (type === "verification_alert") {
+        return "bg-orange-50 text-orange-600";
+    }
+
     if (isAnalysisNotification(notification)) {
         return "bg-emerald-50 text-emerald-600";
     }
@@ -486,4 +551,27 @@ function formatNotificationTime(notification) {
         month: "short",
         day: "numeric",
     });
+}
+
+function getNotificationTargetPath(role, notification) {
+    if (role !== "doctor") return "";
+
+    const type = String(notification?.type || "").toLowerCase();
+
+    if (type === "system_message") {
+        return "/doctor/messages";
+    }
+
+    if (type === "verification_alert") {
+        return "/doctor/dashboard";
+    }
+
+    return "";
+}
+
+function clearAuthSession() {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
 }

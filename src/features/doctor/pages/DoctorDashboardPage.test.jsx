@@ -7,6 +7,7 @@ import {
     getAssignedCases,
     getCaseDetails,
     getDoctorDashboardSummary,
+    rejectCase,
 } from "../services/doctorService";
 
 vi.mock("../services/doctorService", () => ({
@@ -21,7 +22,7 @@ vi.mock("../services/doctorService", () => ({
 
 describe("DoctorDashboardPage", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         window.history.replaceState({}, "", "/doctor/dashboard");
         getDoctorDashboardSummary.mockResolvedValue({
             totalRequests: 2,
@@ -82,7 +83,7 @@ describe("DoctorDashboardPage", () => {
 
         render(<DoctorDashboardPage />);
 
-        expect(await screen.findByText("Case not found")).toBeInTheDocument();
+        expect(await screen.findByText(/We could not load this case detail/i)).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: /Robert Taylor/i }));
 
@@ -130,9 +131,58 @@ describe("DoctorDashboardPage", () => {
 
         await waitFor(() => {
             expect(approveCase).toHaveBeenCalledWith("SCN-missing", expect.objectContaining({
+                physicianObservation: "Needs follow up",
                 finalDiagnosis: "Malignant",
             }));
         });
         expect(approveCase).toHaveBeenCalledTimes(1);
+    });
+
+    it("saves typed physician observation before rejecting a case", async () => {
+        const user = userEvent.setup();
+        getCaseDetails.mockResolvedValue({
+            caseId: "SCN-missing",
+            requestId: "VER-missing",
+            scanId: "SCN-missing",
+            receivedAt: "2026-06-10T10:00:00.000Z",
+            patient: {
+                name: "Missing Patient",
+            },
+            clinicalImage: {
+                imageUrl: "/uploads/scans/missing.jpg",
+            },
+            aiPrediction: {
+                prediction: "Malignant",
+                confidence: 0.82,
+                predictions: [
+                    {
+                        label: "Malignant",
+                        percentage: 82,
+                    },
+                    {
+                        label: "Benign",
+                        percentage: 18,
+                    },
+                ],
+            },
+            patientNotes: "Arm - new suspicious lesion",
+            physicianObservation: "",
+        });
+        rejectCase.mockResolvedValueOnce({
+            status: "success",
+        });
+
+        render(<DoctorDashboardPage />);
+
+        expect(await screen.findByText(/Case #SCN-missing: Missing Patient/i)).toBeInTheDocument();
+        await user.type(screen.getByPlaceholderText(/Type your professional assessment here/i), "Likely false positive after clinical review.");
+        await user.click(screen.getByRole("button", { name: /Reject \/ False Positive/i }));
+
+        await waitFor(() => {
+            expect(rejectCase).toHaveBeenCalledWith("SCN-missing", expect.objectContaining({
+                physicianObservation: "Likely false positive after clinical review.",
+                finalDiagnosis: "Benign",
+            }));
+        });
     });
 });

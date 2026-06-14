@@ -111,8 +111,8 @@ const HistoricalDetailPage = () => {
     const consultation = scanDetail.consultation;
 
     return (
-        <div className="max-w-6xl pb-10">
-            <div className="mb-8 flex items-center justify-between">
+        <div className="w-full max-w-6xl mx-auto pb-10">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Case Detail</h1>
                     <p className="text-gray-600">Review your AI analysis results and consultation status.</p>

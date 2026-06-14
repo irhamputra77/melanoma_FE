@@ -3,8 +3,8 @@ import { AnimatePresence, motion as Motion } from "motion/react";
 import { Brush, Eraser, RotateCcw, Save, Undo2, X } from "lucide-react";
 import { getAssetUrlCandidates } from "../../../../utils/assets";
 
-const MAX_CANVAS_WIDTH = 840;
-const MAX_CANVAS_HEIGHT = 560;
+const MAX_CANVAS_WIDTH = 1040;
+const MAX_CANVAS_HEIGHT = 680;
 const DEFAULT_BRUSH_COLOR = "#2563eb";
 const BRUSH_COLOR_OPTIONS = [
     { label: "Blue", value: "#2563eb" },
@@ -31,6 +31,7 @@ export default function GradcamAnnotationModal({
     const [canvasSize, setCanvasSize] = useState({ width: 720, height: 480 });
     const [tool, setTool] = useState("brush");
     const [brushSize, setBrushSize] = useState(18);
+    const [brushSoftness, setBrushSoftness] = useState(0.35);
     const [brushColor, setBrushColor] = useState(DEFAULT_BRUSH_COLOR);
     const [gradcamOpacity, setGradcamOpacity] = useState(0.42);
     const [history, setHistory] = useState([]);
@@ -165,7 +166,7 @@ export default function GradcamAnnotationModal({
         const context = canvas?.getContext("2d");
         if (!context) return;
 
-        prepareDrawingContext(context, tool, brushSize, brushColor);
+        prepareDrawingContext(context, tool, brushSize, brushColor, brushSoftness);
         context.beginPath();
         context.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
         context.fill();
@@ -177,7 +178,7 @@ export default function GradcamAnnotationModal({
         const context = canvas?.getContext("2d");
         if (!context) return;
 
-        prepareDrawingContext(context, tool, brushSize, brushColor);
+        prepareDrawingContext(context, tool, brushSize, brushColor, brushSoftness);
         context.beginPath();
         context.moveTo(from.x, from.y);
         context.lineTo(to.x, to.y);
@@ -262,13 +263,13 @@ export default function GradcamAnnotationModal({
                         </div>
 
                         <div className="grid max-h-[calc(92vh-104px)] grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_280px]">
-                            <div className="bg-slate-50 p-6">
+                            <div className="flex min-h-[620px] items-center justify-center bg-slate-50 p-6">
                                 {loadError ? (
                                     <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-red-100 bg-red-50 px-6 text-center text-sm font-semibold text-red-600">
                                         {loadError}
                                     </div>
                                 ) : (
-                                    <div className="mx-auto w-full max-w-[860px]">
+                                    <div className="w-full max-w-[1040px]">
                                         <div
                                             className="relative mx-auto overflow-hidden rounded-3xl bg-slate-950 shadow-inner"
                                             style={{
@@ -330,6 +331,19 @@ export default function GradcamAnnotationModal({
                                         className="w-full accent-blue-600"
                                     />
                                     <p className="text-sm font-bold text-slate-700">{brushSize}px</p>
+                                </ControlGroup>
+
+                                <ControlGroup title="Brush Smoothness">
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        value={brushSoftness}
+                                        onChange={(event) => setBrushSoftness(Number(event.target.value))}
+                                        className="w-full accent-blue-600"
+                                    />
+                                    <p className="text-sm font-bold text-slate-700">{Math.round(brushSoftness * 100)}%</p>
                                 </ControlGroup>
 
                                 <ControlGroup title="Brush Color">
@@ -458,15 +472,19 @@ function ToolButton({ active, onClick, children }) {
     );
 }
 
-function prepareDrawingContext(context, tool, size, color = DEFAULT_BRUSH_COLOR) {
+function prepareDrawingContext(context, tool, size, color = DEFAULT_BRUSH_COLOR, softness = 0) {
     context.lineCap = "round";
     context.lineJoin = "round";
     context.lineWidth = size;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.shadowBlur = Math.max(0, size * softness * 0.45);
 
     if (tool === "eraser") {
         context.globalCompositeOperation = "destination-out";
         context.strokeStyle = "rgba(0, 0, 0, 1)";
         context.fillStyle = "rgba(0, 0, 0, 1)";
+        context.shadowColor = "rgba(0, 0, 0, 1)";
         return;
     }
 
@@ -474,6 +492,7 @@ function prepareDrawingContext(context, tool, size, color = DEFAULT_BRUSH_COLOR)
     const drawingColor = hexToRgba(color, 0.78);
     context.strokeStyle = drawingColor;
     context.fillStyle = drawingColor;
+    context.shadowColor = drawingColor;
 }
 
 function hexToRgba(hex, alpha) {
@@ -495,7 +514,7 @@ function hexToRgba(hex, alpha) {
 }
 
 function getContainedSize(width, height) {
-    const ratio = Math.min(MAX_CANVAS_WIDTH / width, MAX_CANVAS_HEIGHT / height, 1);
+    const ratio = Math.min(MAX_CANVAS_WIDTH / width, MAX_CANVAS_HEIGHT / height);
 
     return {
         width: Math.max(1, Math.round(width * ratio)),

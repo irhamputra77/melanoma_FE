@@ -121,6 +121,13 @@ export default function HistoricalCasePage() {
     };
 
     const handleSelectCase = (caseItem) => {
+        const nextCaseId = caseItem?.caseId || "";
+        const currentCaseId = selectedCase?.caseId || "";
+
+        if (nextCaseId && nextCaseId === currentCaseId) {
+            return;
+        }
+
         setSelectedCase(caseItem);
         const hasPatientId = Boolean(caseItem?.patient?.id);
         setEvolutionLoading(hasPatientId);

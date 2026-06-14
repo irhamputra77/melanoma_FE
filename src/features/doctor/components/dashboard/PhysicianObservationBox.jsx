@@ -1,20 +1,10 @@
-import { Mic, Paperclip } from "lucide-react";
-
-export default function PhysicianObservationBox({ value, onChange, onSave, saving = false }) {
+export default function PhysicianObservationBox({ value, onChange }) {
     return (
         <div>
-            <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="mb-4">
                 <label className="block font-extrabold text-slate-900">
                     Physician Observations
                 </label>
-                <button
-                    type="button"
-                    onClick={onSave}
-                    disabled={saving}
-                    className="text-sm font-extrabold text-blue-600 disabled:text-slate-400"
-                >
-                    {saving ? "Saving..." : "Save Observation"}
-                </button>
             </div>
 
             <div className="relative">

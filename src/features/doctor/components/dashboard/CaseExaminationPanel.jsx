@@ -12,8 +12,8 @@ export default function CaseExaminationPanel({
     caseDetails,
     loading = false,
     observation,
+    observationError = "",
     onObservationChange,
-    onSaveObservation,
     onApprove,
     onReject,
     onSaveAnnotation,
@@ -89,11 +89,14 @@ export default function CaseExaminationPanel({
             </div>
 
             <div className="mt-10">
+                {observationError && (
+                    <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+                        {observationError}
+                    </div>
+                )}
                 <PhysicianObservationBox
                     value={observation}
                     onChange={onObservationChange}
-                    onSave={onSaveObservation}
-                    saving={actionLoading === "save"}
                 />
             </div>
 
