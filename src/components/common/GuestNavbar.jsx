@@ -33,10 +33,6 @@ const GuestNavbar = () => {
             )}
           </svg>
         </button>
-
-        <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
-          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" alt="User profile" className="w-full h-full object-cover" />
-        </div>
       </div>
 
       {isMobileMenuOpen && (

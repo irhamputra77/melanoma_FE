@@ -120,8 +120,8 @@ const PatientChatPage = () => {
                         if (err.response && err.response.status === 404) {
                             clearInterval(refreshIntervalRef.current);
                             clearInterval(detailIntervalRef.current);
-                            alert('Riwayat konsultasi ini telah dihapus oleh klinik.');
-                            if (isMounted) navigate('/patient/dashboard', { replace: true });
+                            // Hindari auto-redirect jika ini murni 404 dari data lama
+                            // console.warn('Pesan error dari fetch interval');
                         }
                     }
                 }, 3000);
@@ -225,10 +225,7 @@ const PatientChatPage = () => {
     const docName = consultation?.doctor?.name || 'Physician';
     const isConsultationClosed = consultation?.status === 'CLOSED' || consultation?.status === 'case_resolved';
 
-    const relatedScanId = consultation?.scan?.scanId || consultation?.scan?.id || consultation?.scanId;
-
     return (
-        // PERBAIKAN RESPONSIVE 1: h-[calc(100vh-130px)] untuk Fit to Screen
         <div className="max-w-7xl mx-auto h-[calc(100vh-130px)] flex flex-col">
 
             <div className="mb-4 shrink-0 flex items-center justify-between">
@@ -238,7 +235,6 @@ const PatientChatPage = () => {
                 </button>
             </div>
 
-            {/* PERBAIKAN RESPONSIVE 2: Grid flex-1 min-h-0 overflow-hidden */}
             <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 gap-5 xl:gap-8 overflow-hidden">
 
                 {/* KOLOM CHAT DOKTER */}
@@ -267,10 +263,10 @@ const PatientChatPage = () => {
                             </div>
                         </div>
 
-                        {/* TOMBOL AI KHUSUS MOBILE (Hanya muncul jika layar kecil) */}
-                        {!isConsultationClosed && relatedScanId && (
+                        {/* TOMBOL AI KHUSUS MOBILE */}
+                        {!isConsultationClosed && (
                             <button
-                                onClick={() => navigate(`/patient/chatbot/${relatedScanId}`, { state: { doctorChatId: id } })}
+                                onClick={() => navigate(`/patient/chatbot/${id}`)}
                                 className="xl:hidden p-2 bg-[#0A58CA] text-white rounded-xl shadow-sm shrink-0 hover:bg-blue-700 transition"
                                 title="Tanya AI Assistant"
                             >
@@ -279,7 +275,6 @@ const PatientChatPage = () => {
                         )}
                     </div>
 
-                    {/* PERBAIKAN RESPONSIVE 3: Pesan dibungkus min-h-0 */}
                     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 md:p-6 bg-gray-50/30">
                         <div className="flex justify-center mb-8 shrink-0">
                             <span className="bg-white border border-gray-200 text-gray-600 text-[10px] font-bold px-4 py-1.5 rounded-full tracking-widest uppercase shadow-sm">
@@ -298,7 +293,6 @@ const PatientChatPage = () => {
                         <div ref={messagesEndRef} className="h-4" />
                     </div>
 
-                    {/* FOOTER FORM: Diberi shrink-0 */}
                     <div className="shrink-0 bg-white">
                         {isDoctorTyping && !isConsultationClosed && (
                             <div className="px-6 md:px-8 py-2 text-xs text-gray-500 italic flex items-center bg-gray-50/50 border-t border-gray-100">
@@ -370,10 +364,10 @@ const PatientChatPage = () => {
                     </div>
                 </div>
 
-                {/* PERBAIKAN RESPONSIVE 4: Kolom Kanan disembunyikan di Mobile (hidden xl:block) agar Chat bisa Fullscreen di HP */}
                 <div className="xl:col-span-1 h-full overflow-y-auto custom-scrollbar pr-2 min-h-0 hidden xl:block pb-10">
 
-                    {!isConsultationClosed && relatedScanId && (
+                    {/* MENGGUNAKAN ID KONSULTASI UNTUK MASUK KE AI */}
+                    {!isConsultationClosed && (
                         <div className="bg-gradient-to-br from-[#EBF3FF] to-white rounded-3xl p-5 shadow-sm border border-blue-200 mb-6 animate-fadeIn">
                             <div className="flex items-center mb-3">
                                 <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center mr-3 shadow-sm">
@@ -385,10 +379,10 @@ const PatientChatPage = () => {
                                 </div>
                             </div>
                             <p className="text-xs text-gray-600 mb-4 leading-relaxed">
-                                Sembari menunggu balasan dokter, diskusikan hasil scan Anda dengan Asisten AI kami.
+                                Sembari menunggu balasan dokter, diskusikan hasil scan Anda dengan Asisten AI kami di ruangan yang sama.
                             </p>
                             <button
-                                onClick={() => navigate(`/patient/chatbot/${relatedScanId}`, { state: { doctorChatId: id } })}
+                                onClick={() => navigate(`/patient/chatbot/${id}`)}
                                 className="w-full py-2.5 bg-[#0A58CA] text-white rounded-xl font-bold transition hover:bg-blue-700 flex items-center justify-center shadow-md text-sm"
                             >
                                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z" /></svg>
