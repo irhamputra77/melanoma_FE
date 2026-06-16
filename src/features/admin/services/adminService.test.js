@@ -25,9 +25,10 @@ describe('adminService.getAdminUsers', () => {
     });
 
     const result = await getAdminUsers();
+    const apiBaseURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3300/api';
 
     expect(api.request).toHaveBeenCalledWith({
-      baseURL: 'http://localhost:3300/api/v1/admin',
+      baseURL: `${apiBaseURL.replace(/\/$/, '')}/v1/admin`,
       method: 'get',
       url: '/users',
       params: {

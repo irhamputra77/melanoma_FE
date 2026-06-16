@@ -1,6 +1,10 @@
 import api from "../../../services/api";
 
-const adminBaseURL = import.meta.env.VITE_ADMIN_API_BASE_URL || "http://localhost:3300/api/v1/admin";
+const defaultApiBaseURL = import.meta.env.PROD
+    ? "https://myskin-api-prod-production.up.railway.app/api"
+    : "http://localhost:3300/api";
+const apiBaseURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || defaultApiBaseURL;
+const adminBaseURL = import.meta.env.VITE_ADMIN_API_BASE_URL || `${apiBaseURL.replace(/\/$/, "")}/v1/admin`;
 const unwrap = (response) => response.data?.data ?? response.data;
 const unwrapList = (response) => {
     const payload = response.data;
