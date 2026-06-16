@@ -30,8 +30,9 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const role = sessionStorage.getItem("role");
+        const skipMaintenanceRedirect = Boolean(error?.config?.skipMaintenanceRedirect);
 
-        if (role !== "admin" && isMaintenanceError(error)) {
+        if (!skipMaintenanceRedirect && role !== "admin" && isMaintenanceError(error)) {
             setMaintenanceMode(true);
             window.location.assign("/maintenance");
         }

@@ -19,19 +19,26 @@ export default function MaintenancePage() {
                     MySkin sedang dalam pemeliharaan sementara. Admin masih dapat mengakses dashboard untuk menyelesaikan pekerjaan operasional.
                 </p>
                 <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    {isAdmin && (
+                    {isAdmin ? (
                         <Link
                             to="/admin/settings"
                             className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-6 text-sm font-extrabold text-white shadow-lg shadow-blue-600/20"
                         >
                             Open Admin Settings
                         </Link>
+                    ) : (
+                        <Link
+                            to="/auth/login"
+                            className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-6 text-sm font-extrabold text-white shadow-lg shadow-blue-600/20"
+                        >
+                            Admin Login
+                        </Link>
                     )}
                     <Link
-                        to="/auth/login"
+                        to="/"
                         className="inline-flex h-12 items-center justify-center rounded-xl bg-slate-100 px-6 text-sm font-extrabold text-slate-700"
                     >
-                        Back to Login
+                        Back to Home
                     </Link>
                 </div>
             </section>

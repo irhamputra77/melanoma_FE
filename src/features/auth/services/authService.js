@@ -4,7 +4,9 @@ import { ENDPOINTS } from '../../../services/endpoints';
 const unwrapAuthResponse = (response) => response.data?.data ?? response.data;
 
 export const login = async (payload) => {
-    const response = await api.post(ENDPOINTS.AUTH.LOGIN, payload);
+    const response = await api.post(ENDPOINTS.AUTH.LOGIN, payload, {
+        skipMaintenanceRedirect: true,
+    });
     return response.data;
 };
 
