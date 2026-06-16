@@ -1,14 +1,30 @@
 export function toAssetUrl(path) {
     if (!path) return "";
-    if (/^https?:\/\//i.test(path)) return path;
+    if (/^(data:|blob:)/i.test(path)) return path;
 
-    const baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
-    const origin = baseUrl.replace(/\/api\/?.*$/i, "");
+    const origin = getApiAssetOrigin();
+
+    if (/^https?:\/\//i.test(path)) {
+        try {
+            const url = new URL(path);
+            if (origin && isLocalAssetHost(url.hostname)) {
+                return `${origin}${url.pathname}${url.search}${url.hash}`;
+            }
+        } catch {
+            return path;
+        }
+
+        return path;
+    }
+
+    if (!origin) return `${path.startsWith("/") ? path : `/${path}`}`;
 
     return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 export function getAssetUrlCandidates(path) {
+    if (/^(data:|blob:)/i.test(path || "")) return [path];
+
     const primaryUrl = toAssetUrl(path);
     const candidates = [primaryUrl];
 
@@ -30,4 +46,13 @@ export function getAssetUrlCandidates(path) {
     }
 
     return [...new Set(candidates.filter(Boolean))];
+}
+
+function getApiAssetOrigin() {
+    const baseUrl = import.meta.env.VITE_ASSET_BASE_URL || import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
+    return baseUrl.replace(/\/api\/?.*$/i, "").replace(/\/$/, "");
+}
+
+function isLocalAssetHost(hostname) {
+    return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname);
 }

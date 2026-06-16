@@ -6,16 +6,35 @@ import {
     getAvailableDoctors,
     initiateConsultation
 } from '../services/patientService';
+import { getAssetUrlCandidates } from '../../../utils/assets';
 
-const resolveImageUrl = (path) => {
-    if (!path) return "";
-    if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) {
-        if (path.includes('dicebear')) return path;
-        return `${path}${path.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
-    }
-    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3300/api';
-    const baseUrl = apiUrl.split('/api')[0];
-    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}?t=${new Date().getTime()}`;
+const AssetImage = ({ src, fallbackSrc = '', alt, ...props }) => {
+    const [fallback, setFallback] = useState({ source: src, index: 0 });
+    const candidates = getAssetUrlCandidates(src);
+    const index = fallback.source === src ? fallback.index : 0;
+    const resolvedSrc = candidates[index] || fallbackSrc;
+
+    useEffect(() => {
+        setFallback({ source: src, index: 0 });
+    }, [src]);
+
+    return (
+        <img
+            src={resolvedSrc}
+            alt={alt}
+            onError={() => {
+                setFallback((current) => {
+                    if (current.source !== src) return { source: src, index: 0 };
+                    const nextIndex = current.index + 1;
+                    if (nextIndex < candidates.length) {
+                        return { source: src, index: nextIndex };
+                    }
+                    return current;
+                });
+            }}
+            {...props}
+        />
+    );
 };
 
 const formatDate = (isoString) => {
@@ -107,7 +126,6 @@ const HistoricalDetailPage = () => {
     const safeClass = scanDetail.aiPrediction || scanDetail.classification || 'Unknown';
     const isMalignant = safeClass.toLowerCase().includes('malignant');
     const safeRisk = scanDetail.riskLevel || (isMalignant ? 'HIGH RISK' : 'EVALUATED');
-    const imageUrl = resolveImageUrl(scanDetail.imageUrl);
     const consultation = scanDetail.consultation;
 
     return (
@@ -132,7 +150,7 @@ const HistoricalDetailPage = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                         <div className="relative rounded-2xl overflow-hidden bg-gray-900 h-[400px] flex items-center justify-center mb-6">
-                            <img src={imageUrl} alt="Scan Detail" className="w-full h-full object-contain" />
+                            <AssetImage src={scanDetail.imageUrl} alt="Scan Detail" className="w-full h-full object-contain" />
                             <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm">
                                 <span className="text-xs font-bold text-gray-900">ID: #{scanDetail.scanId || scanDetail.id?.substring(0, 6).toUpperCase()}</span>
                             </div>
@@ -194,7 +212,7 @@ const HistoricalDetailPage = () => {
                         {consultation ? (
                             <div className="space-y-5">
                                 <div className="flex items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <img src={resolveImageUrl(consultation.doctor?.avatarUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${consultation.doctor?.name || 'Doc'}`} alt="Doctor" className="w-12 h-12 rounded-full bg-white border border-gray-200 mr-3" />
+                                    <AssetImage src={consultation.doctor?.avatarUrl} fallbackSrc={`https://api.dicebear.com/7.x/avataaars/svg?seed=${consultation.doctor?.name || 'Doc'}`} alt="Doctor" className="w-12 h-12 rounded-full bg-white border border-gray-200 mr-3" />
                                     <div>
                                         <p className="text-sm font-bold text-gray-900">{consultation.doctor?.name || 'Assigned Doctor'}</p>
                                         <p className="text-xs text-gray-500">{consultation.doctor?.specialty || 'Dermatologist'}</p>
@@ -244,7 +262,7 @@ const HistoricalDetailPage = () => {
                                                 const docId = getDocId(doc);
                                                 return (
                                                     <label key={docId} className={`flex items-center p-3 border rounded-xl cursor-pointer transition ${selectedDoctorId === docId ? 'border-blue-600 border-2 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
-                                                        <img src={resolveImageUrl(doc.avatarUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.name}`} className="w-10 h-10 rounded-full bg-gray-100 mr-3" alt={doc.name} />
+                                                        <AssetImage src={doc.avatarUrl} fallbackSrc={`https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.name}`} className="w-10 h-10 rounded-full bg-gray-100 mr-3" alt={doc.name} />
                                                         <div className="flex-1">
                                                             <p className="text-sm font-bold text-gray-900">{doc.name}</p>
                                                             <p className="text-[10px] text-gray-500 mt-0.5">{doc.specialty || 'Dermatologist'}</p>
