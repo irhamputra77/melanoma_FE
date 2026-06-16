@@ -94,6 +94,35 @@ describe('LoginPage', () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
+  it('allows a newly approved doctor whose profile status is active', async () => {
+    const user = userEvent.setup();
+    login.mockResolvedValue({
+      data: {
+        accessToken: 'token-123',
+        user: { role: 'doctor' },
+      },
+    });
+    getDoctorProfile.mockResolvedValue({
+      doctorProfile: { status: 'active' },
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Email Address'), 'approved-doctor@example.com');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Login' }));
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/doctor/dashboard');
+    });
+    expect(sessionStorage.getItem('token')).toBe('token-123');
+    expect(sessionStorage.getItem('role')).toBe('doctor');
+  });
+
   it('shows an API error when login fails', async () => {
     const user = userEvent.setup();
     login.mockRejectedValue({

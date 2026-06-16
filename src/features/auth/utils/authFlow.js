@@ -25,20 +25,46 @@ export function getTokenFromAuthResponse(payload) {
 }
 
 export async function getDoctorVerificationStatus(payload) {
-    const statusFromLogin = normalizeVerificationStatus(
-        payload?.verificationStatus ||
-        payload?.doctorVerificationStatus ||
-        payload?.doctorProfile?.verificationStatus ||
-        payload?.doctorProfile?.status ||
-        payload?.user?.verificationStatus ||
-        payload?.user?.doctorProfile?.verificationStatus ||
-        payload?.data?.verificationStatus ||
-        payload?.data?.doctorVerificationStatus ||
-        payload?.data?.doctorProfile?.verificationStatus ||
-        payload?.data?.doctorProfile?.status ||
-        payload?.data?.user?.verificationStatus ||
-        payload?.data?.user?.doctorProfile?.verificationStatus
-    );
+    const statusFromLogin = normalizeFirstVerificationStatus([
+        payload?.verificationStatus,
+        payload?.doctorVerificationStatus,
+        payload?.practitionerStatus?.status,
+        payload?.practitionerStatus,
+        payload?.doctorStatus,
+        payload?.isVerified,
+        payload?.doctorProfile?.verificationStatus,
+        payload?.doctorProfile?.status,
+        payload?.doctorProfile?.practitionerStatus?.status,
+        payload?.doctorProfile?.practitionerStatus,
+        payload?.doctorProfile?.isVerified,
+        payload?.user?.verificationStatus,
+        payload?.user?.doctorStatus,
+        payload?.user?.isVerified,
+        payload?.user?.doctorProfile?.verificationStatus,
+        payload?.user?.doctorProfile?.status,
+        payload?.user?.doctorProfile?.practitionerStatus?.status,
+        payload?.user?.doctorProfile?.practitionerStatus,
+        payload?.user?.doctorProfile?.isVerified,
+        payload?.data?.verificationStatus,
+        payload?.data?.doctorVerificationStatus,
+        payload?.data?.practitionerStatus?.status,
+        payload?.data?.practitionerStatus,
+        payload?.data?.doctorStatus,
+        payload?.data?.isVerified,
+        payload?.data?.doctorProfile?.verificationStatus,
+        payload?.data?.doctorProfile?.status,
+        payload?.data?.doctorProfile?.practitionerStatus?.status,
+        payload?.data?.doctorProfile?.practitionerStatus,
+        payload?.data?.doctorProfile?.isVerified,
+        payload?.data?.user?.verificationStatus,
+        payload?.data?.user?.doctorStatus,
+        payload?.data?.user?.isVerified,
+        payload?.data?.user?.doctorProfile?.verificationStatus,
+        payload?.data?.user?.doctorProfile?.status,
+        payload?.data?.user?.doctorProfile?.practitionerStatus?.status,
+        payload?.data?.user?.doctorProfile?.practitionerStatus,
+        payload?.data?.user?.doctorProfile?.isVerified,
+    ]);
 
     if (statusFromLogin) {
         return statusFromLogin;
@@ -46,20 +72,49 @@ export async function getDoctorVerificationStatus(payload) {
 
     const profile = await getDoctorProfile();
 
-    return normalizeVerificationStatus(
-        profile?.verificationStatus ||
-        profile?.status ||
-        profile?.practitionerStatus?.status ||
-        profile?.doctorProfile?.verificationStatus ||
-        profile?.doctorProfile?.status
-    );
+    return normalizeFirstVerificationStatus([
+        profile?.verificationStatus,
+        profile?.status,
+        profile?.doctorStatus,
+        profile?.isVerified,
+        profile?.practitionerStatus?.status,
+        profile?.practitionerStatus,
+        profile?.doctorProfile?.verificationStatus,
+        profile?.doctorProfile?.status,
+        profile?.doctorProfile?.doctorStatus,
+        profile?.doctorProfile?.isVerified,
+        profile?.doctorProfile?.practitionerStatus?.status,
+        profile?.doctorProfile?.practitionerStatus,
+        profile?.user?.verificationStatus,
+        profile?.user?.doctorStatus,
+        profile?.user?.isVerified,
+        profile?.user?.doctorProfile?.verificationStatus,
+        profile?.user?.doctorProfile?.status,
+        profile?.user?.doctorProfile?.isVerified,
+        profile?.user?.doctorProfile?.practitionerStatus?.status,
+        profile?.user?.doctorProfile?.practitionerStatus,
+    ]);
+}
+
+function normalizeFirstVerificationStatus(values) {
+    for (const value of values) {
+        const status = normalizeVerificationStatus(value);
+        if (status) return status;
+    }
+
+    return "";
 }
 
 export function normalizeVerificationStatus(value) {
-    const status = String(value || "").trim().toLowerCase();
+    if (value === true) return "verified";
+    if (value === false) return "pending";
 
-    if (status === "approved") return "verified";
-    if (status === "verified" || status === "pending" || status === "rejected") return status;
+    const status = String(value || "").trim().toLowerCase();
+    const normalizedStatus = status.replace(/[\s-]+/g, "_");
+
+    if (["approved", "active", "accepted", "verified", "approved_by_admin"].includes(normalizedStatus)) return "verified";
+    if (["pending", "pending_review", "waiting", "unverified", "inactive"].includes(normalizedStatus)) return "pending";
+    if (["rejected", "declined", "denied", "blocked", "suspended"].includes(normalizedStatus)) return "rejected";
 
     return "";
 }
