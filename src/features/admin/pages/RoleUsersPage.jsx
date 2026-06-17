@@ -145,12 +145,7 @@ export default function RoleUsersPage({ role }) {
         setModalError("");
 
         try {
-            const createdUser = await createAdminUser(toUserPayload(addUser, role, { includePassword: true }));
-            const createdUserId = createdUser?.userId || createdUser?.id || createdUser?.data?.userId;
-
-            if (role === "admin" && createdUserId) {
-                await updateAdminUserStatus(createdUserId, "active");
-            }
+            await createAdminUser(toUserPayload(addUser, role, { includePassword: true }));
 
             closeAddModal();
             setPage(1);
@@ -681,10 +676,20 @@ function toUserPayload(user, role, options = {}) {
         fullName: user.name,
         email: normalizeEmail(user.email),
         role,
-        gender: String(user.gender || "").toLowerCase(),
-        phoneNumber: user.phone || undefined,
-        birthDate: user.birthDate || undefined,
     };
+
+    const gender = String(user.gender || "").toLowerCase();
+    if (gender) {
+        payload.gender = gender;
+    }
+
+    if (user.phone) {
+        payload.phoneNumber = user.phone;
+    }
+
+    if (user.birthDate) {
+        payload.birthDate = user.birthDate;
+    }
 
     if (options.includePassword) {
         payload.password = user.password;
