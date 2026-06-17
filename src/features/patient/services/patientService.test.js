@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import api from "../../../services/api";
-import { analyzePatientScan, uploadPatientScan } from "./patientService";
+import { analyzePatientScan, getActiveConsultation, isActiveConsultation, uploadPatientScan } from "./patientService";
 
 vi.mock("../../../services/api", () => ({
     default: {
@@ -88,5 +88,39 @@ describe("patientService scan analysis", () => {
     it("stops analysis before creating an undefined scan URL", async () => {
         await expect(analyzePatientScan()).rejects.toThrow("Upload response does not contain scan id.");
         expect(api.request).not.toHaveBeenCalled();
+    });
+});
+
+describe("patientService active consultation guard", () => {
+    beforeEach(() => {
+        api.request.mockReset();
+    });
+
+    it("treats open consultation statuses as active and closed statuses as inactive", () => {
+        expect(isActiveConsultation({ id: "consult-1", status: "OPEN" })).toBe(true);
+        expect(isActiveConsultation({ id: "consult-2", status: "case_resolved" })).toBe(false);
+        expect(isActiveConsultation({ id: "consult-3", status: "CLOSED" })).toBe(false);
+        expect(isActiveConsultation({ status: "OPEN" })).toBe(false);
+    });
+
+    it("returns the first active consultation from the patient consultation list", async () => {
+        api.request.mockResolvedValue({
+            data: {
+                status: "success",
+                data: [
+                    { id: "closed-consult", status: "CLOSED" },
+                    { id: "active-consult", status: "OPEN" },
+                ],
+            },
+        });
+
+        const result = await getActiveConsultation();
+
+        expect(api.request).toHaveBeenCalledWith(expect.objectContaining({
+            method: "get",
+            url: "/consultations",
+            params: expect.objectContaining({ page: 1, limit: 50 }),
+        }));
+        expect(result).toEqual({ id: "active-consult", status: "OPEN" });
     });
 });

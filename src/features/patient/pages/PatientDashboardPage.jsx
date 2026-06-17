@@ -11,6 +11,7 @@ import {
   getRecentScans,
   getAvailableDoctors,
   submitVerificationRequest,
+  getActiveConsultation,
 } from '../services/patientService';
 
 const formatDate = (dateString) => {
@@ -58,11 +59,13 @@ const PatientDashboardPage = () => {
   // State Dokter
   const [availableDoctors, setAvailableDoctors] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [activeConsultation, setActiveConsultation] = useState(null);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
+  const [isLoadingActiveConsultation, setIsLoadingActiveConsultation] = useState(true);
   
   const [errorMessage, setErrorMessage] = useState('');
   const [verificationError, setVerificationError] = useState('');
@@ -78,6 +81,7 @@ const PatientDashboardPage = () => {
   useEffect(() => {
     fetchRecentScans();
     fetchDoctors();
+    fetchActiveConsultation();
     return () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); };
   }, [imagePreviewUrl]);
 
@@ -111,6 +115,17 @@ const PatientDashboardPage = () => {
       console.error("Gagal memuat daftar dokter:", error);
     } finally {
       setIsLoadingDoctors(false);
+    }
+  };
+
+  const fetchActiveConsultation = async () => {
+    try {
+      const consultation = await getActiveConsultation();
+      setActiveConsultation(consultation);
+    } catch (error) {
+      console.error("Gagal memuat konsultasi aktif:", error);
+    } finally {
+      setIsLoadingActiveConsultation(false);
     }
   };
 
@@ -222,6 +237,10 @@ const PatientDashboardPage = () => {
 
   // DIKEMBALIKAN: Fungsi untuk Submit ke Dokter
   const handleRequestVerification = async () => {
+    if (activeConsultation) {
+      setVerificationError('Anda masih memiliki konsultasi aktif. Selesaikan case tersebut dengan dokter sebelum request ke dokter lain.');
+      return;
+    }
     if (!currentScanId || !selectedDoctorId) {
       setVerificationError('Silakan pilih dokter terlebih dahulu.');
       return;
@@ -241,6 +260,7 @@ const PatientDashboardPage = () => {
         triggerChatbot: false,
         autoStartChatbot: false,
       });
+      fetchActiveConsultation();
       setSuccessMessage('Permintaan verifikasi berhasil dikirim ke Dokter. Anda akan diberi notifikasi.');
     } catch (error) {
       setVerificationError(error.response?.data?.message || 'Gagal mengirim permintaan verifikasi.');
@@ -261,6 +281,9 @@ const PatientDashboardPage = () => {
   const safeClass = analysisResult?.aiPrediction || analysisResult?.classification || 'Unknown';
   const safeRisk = analysisResult?.riskLevel || (safeClass.toLowerCase().includes('malignant') ? 'HIGH' : 'LOW');
   const safeObs = analysisResult?.message || analysisResult?.observation || 'Analysis completed successfully.';
+  const activeConsultationId = activeConsultation?.id || activeConsultation?.consultationId;
+  const activeDoctorName = activeConsultation?.doctor?.name || activeConsultation?.doctorName || 'dokter Anda';
+  const hasActiveConsultation = Boolean(activeConsultation);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
@@ -409,9 +432,15 @@ const PatientDashboardPage = () => {
           
           <div className="flex-1 min-h-0 flex flex-col">
             <label className="block text-blue-600 text-[10px] font-bold mb-2 tracking-widest uppercase shrink-0">Select Active Dermatologist</label>
+
+            {activeConsultation && (
+              <div className="mb-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 shrink-0">
+                Anda masih memiliki konsultasi aktif dengan {activeDoctorName}. Tutup case tersebut terlebih dahulu sebelum request dokter lain.
+              </div>
+            )}
             
             {/* Area Daftar Dokter yang bisa di-scroll */}
-            <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2 ${viewState !== 'result' ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2 ${viewState !== 'result' || hasActiveConsultation ? 'opacity-50 pointer-events-none' : ''}`}>
               {isLoadingDoctors ? (
                 <p className="text-xs text-gray-500">Memuat data dokter...</p>
               ) : availableDoctors.length > 0 ? (
@@ -444,12 +473,21 @@ const PatientDashboardPage = () => {
             <LoadingButton 
               onClick={handleRequestVerification} 
               isLoading={isRequesting} 
-              disabled={viewState !== 'result' || isRequesting || !selectedDoctorId} 
+              disabled={viewState !== 'result' || isRequesting || isLoadingActiveConsultation || hasActiveConsultation || !selectedDoctorId} 
               className="w-full py-3 mt-4 shrink-0"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg> 
               Request Verification
             </LoadingButton>
+            {activeConsultationId && (
+              <button
+                type="button"
+                onClick={() => navigate(`/patient/messages/${activeConsultationId}`)}
+                className="mt-2 w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-xs font-extrabold text-blue-700 transition hover:bg-blue-100"
+              >
+                Buka Konsultasi Aktif
+              </button>
+            )}
           </div>
         </div>
       </div>

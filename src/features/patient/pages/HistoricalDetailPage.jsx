@@ -4,7 +4,8 @@ import LoadingButton from '../../../components/common/LoadingButton';
 import {
     getPatientScanDetail,
     getAvailableDoctors,
-    initiateConsultation
+    initiateConsultation,
+    getActiveConsultation
 } from '../services/patientService';
 import { getAssetUrlCandidates } from '../../../utils/assets';
 
@@ -13,10 +14,6 @@ const AssetImage = ({ src, fallbackSrc = '', alt, ...props }) => {
     const candidates = getAssetUrlCandidates(src);
     const index = fallback.source === src ? fallback.index : 0;
     const resolvedSrc = candidates[index] || fallbackSrc;
-
-    useEffect(() => {
-        setFallback({ source: src, index: 0 });
-    }, [src]);
 
     return (
         <img
@@ -52,6 +49,7 @@ const HistoricalDetailPage = () => {
     const [scanDetail, setScanDetail] = useState(null);
     const [doctors, setDoctors] = useState([]);
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
+    const [activeConsultation, setActiveConsultation] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isInitiating, setIsInitiating] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
@@ -60,11 +58,13 @@ const HistoricalDetailPage = () => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [scanData, doctorsData] = await Promise.all([
+                const [scanData, doctorsData, activeConsultationData] = await Promise.all([
                     getPatientScanDetail(id),
-                    getAvailableDoctors()
+                    getAvailableDoctors(),
+                    getActiveConsultation()
                 ]);
                 setScanDetail(scanData);
+                setActiveConsultation(activeConsultationData);
                 
                 const docs = doctorsData?.data || doctorsData || [];
                 setDoctors(docs);
@@ -72,6 +72,7 @@ const HistoricalDetailPage = () => {
                     setSelectedDoctorId(getDocId(docs[0]));
                 }
             } catch (error) {
+                console.error("Gagal memuat detail atau konsultasi aktif:", error);
                 setErrorMessage('Gagal memuat data detail rekam medis.');
             } finally {
                 setIsLoading(false);
@@ -82,6 +83,10 @@ const HistoricalDetailPage = () => {
 
     const handleInitiateConsultation = async () => {
         if (!selectedDoctorId) return;
+        if (activeConsultation) {
+            setErrorMessage('Anda masih memiliki konsultasi aktif. Selesaikan case tersebut dengan dokter sebelum memulai konsultasi baru.');
+            return;
+        }
         setIsInitiating(true);
         setErrorMessage('');
         try {
@@ -91,6 +96,7 @@ const HistoricalDetailPage = () => {
                 initialMessage: "Halo dokter, saya ingin berkonsultasi mengenai hasil deteksi AI ini."
             };
             const result = await initiateConsultation(payload);
+            getActiveConsultation().then(setActiveConsultation).catch(() => {});
             const newConsultationId = result?.id || result?.consultationId;
             if (newConsultationId) {
                 navigate(`/patient/messages/${newConsultationId}`);
@@ -127,6 +133,9 @@ const HistoricalDetailPage = () => {
     const isMalignant = safeClass.toLowerCase().includes('malignant');
     const safeRisk = scanDetail.riskLevel || (isMalignant ? 'HIGH RISK' : 'EVALUATED');
     const consultation = scanDetail.consultation;
+    const activeConsultationId = activeConsultation?.id || activeConsultation?.consultationId;
+    const activeDoctorName = activeConsultation?.doctor?.name || activeConsultation?.doctorName || 'dokter Anda';
+    const blocksNewConsultation = Boolean(activeConsultation) && !consultation;
 
     return (
         <div className="w-full max-w-6xl mx-auto pb-10">
@@ -250,9 +259,26 @@ const HistoricalDetailPage = () => {
                             </div>
                         ) : (
                             <div className="space-y-5">
-                                <p className="text-xs text-gray-600 leading-relaxed">
-                                    No active consultation for this case. Select a specialist below to initiate a secure chat regarding this analysis.
-                                </p>
+                                {blocksNewConsultation ? (
+                                    <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                                        <p className="text-xs font-semibold leading-relaxed text-amber-700">
+                                            Anda masih memiliki konsultasi aktif dengan {activeDoctorName}. Anda baru bisa request dokter lain setelah dokter menutup case tersebut.
+                                        </p>
+                                        {activeConsultationId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/patient/messages/${activeConsultationId}`)}
+                                                className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-blue-700"
+                                            >
+                                                Buka Konsultasi Aktif
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-gray-600 leading-relaxed">
+                                        No active consultation for this case. Select a specialist below to initiate a secure chat regarding this analysis.
+                                    </p>
+                                )}
                                 
                                 <div>
                                     <label className="block text-[10px] font-bold text-blue-600 tracking-wider uppercase mb-2">Select Dermatologist</label>
@@ -261,13 +287,13 @@ const HistoricalDetailPage = () => {
                                             {doctors.map(doc => {
                                                 const docId = getDocId(doc);
                                                 return (
-                                                    <label key={docId} className={`flex items-center p-3 border rounded-xl cursor-pointer transition ${selectedDoctorId === docId ? 'border-blue-600 border-2 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                                                    <label key={docId} className={`flex items-center p-3 border rounded-xl transition ${blocksNewConsultation ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${selectedDoctorId === docId ? 'border-blue-600 border-2 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
                                                         <AssetImage src={doc.avatarUrl} fallbackSrc={`https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.name}`} className="w-10 h-10 rounded-full bg-gray-100 mr-3" alt={doc.name} />
                                                         <div className="flex-1">
                                                             <p className="text-sm font-bold text-gray-900">{doc.name}</p>
                                                             <p className="text-[10px] text-gray-500 mt-0.5">{doc.specialty || 'Dermatologist'}</p>
                                                         </div>
-                                                        <input type="radio" name="doctor" value={docId} checked={selectedDoctorId === docId} onChange={(e) => setSelectedDoctorId(e.target.value)} className="hidden" />
+                                                        <input type="radio" name="doctor" value={docId} checked={selectedDoctorId === docId} onChange={(e) => setSelectedDoctorId(e.target.value)} className="hidden" disabled={blocksNewConsultation} />
                                                         <div className={`w-4 h-4 rounded-full border-4 flex-shrink-0 ${selectedDoctorId === docId ? 'border-blue-600 bg-white' : 'border-gray-300'}`}></div>
                                                     </label>
                                                 );
@@ -283,7 +309,7 @@ const HistoricalDetailPage = () => {
                                 <LoadingButton 
                                     onClick={handleInitiateConsultation} 
                                     isLoading={isInitiating} 
-                                    disabled={!selectedDoctorId || isInitiating}
+                                    disabled={!selectedDoctorId || isInitiating || blocksNewConsultation}
                                     className="w-full py-3.5 bg-[#0A58CA] text-white font-bold rounded-xl text-sm"
                                 >
                                     Start Consultation

@@ -277,6 +277,19 @@ export const getConsultations = async (params) => {
     return response.data;
 };
 
+const closedConsultationStatuses = new Set(["closed", "case_resolved", "resolved", "completed"]);
+
+export function isActiveConsultation(consultation = {}) {
+    const status = String(consultation.status || consultation.caseStatus || "").toLowerCase();
+    return Boolean(consultation.id || consultation.consultationId) && !closedConsultationStatuses.has(status);
+}
+
+export const getActiveConsultation = async () => {
+    const response = await getConsultations({ page: 1, limit: 50 });
+    const consultations = extractConsultationList(response);
+    return consultations.find(isActiveConsultation) || null;
+};
+
 export const getConsultationDetail = async (consultationId) => {
     const response = await patientRequest({ 
         method: "get", 
@@ -383,6 +396,18 @@ function unwrapListResponse(payload) {
         meta,
         status: payload?.status,
     };
+}
+
+function extractConsultationList(payload) {
+    const nestedPayload = payload?.data && !Array.isArray(payload.data) ? payload.data : null;
+
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(nestedPayload?.data)) return nestedPayload.data;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(nestedPayload?.items)) return nestedPayload.items;
+
+    return [];
 }
 
 async function unwrapDownloadResponse(response) {

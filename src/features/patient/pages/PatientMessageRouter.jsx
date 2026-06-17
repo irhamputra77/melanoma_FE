@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getConsultations } from '../services/patientService';
+import { getActiveConsultation } from '../services/patientService';
 
 const PatientMessageRouter = () => {
     const navigate = useNavigate();
@@ -9,17 +9,15 @@ const PatientMessageRouter = () => {
     useEffect(() => {
         const checkActiveConsultation = async () => {
             try {
-                const response = await getConsultations({ page: 1, limit: 10 });
-                const consultations = response.data || response || [];
-                
-                const activeChat = consultations.find(c => c.status !== 'CLOSED');
+                const activeChat = await getActiveConsultation();
 
                 if (activeChat) {
-                    navigate(`/patient/messages/${activeChat.id}`, { replace: true });
+                    navigate(`/patient/messages/${activeChat.id || activeChat.consultationId}`, { replace: true });
                 } else {
                     setIsLoading(false);
                 }
             } catch (error) {
+                console.error("Gagal memeriksa konsultasi aktif:", error);
                 setIsLoading(false);
             }
         };
