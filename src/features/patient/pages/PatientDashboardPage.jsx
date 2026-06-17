@@ -236,6 +236,10 @@ const PatientDashboardPage = () => {
         doctorId: selectedDoctorId,
         scanId: currentScanId,
         patientScanId: currentScanId,
+        source: 'verification_request',
+        createConsultation: false,
+        triggerChatbot: false,
+        autoStartChatbot: false,
       });
       setSuccessMessage('Permintaan verifikasi berhasil dikirim ke Dokter. Anda akan diberi notifikasi.');
     } catch (error) {

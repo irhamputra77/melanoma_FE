@@ -63,6 +63,56 @@ describe('RegisterPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/auth/login');
   });
 
+  it('normalizes phone number before submitting registration', async () => {
+    const user = userEvent.setup();
+    register.mockResolvedValue({});
+
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Sarah Johnson');
+    await user.type(screen.getByPlaceholderText('Email Address'), 'sarah@example.com');
+    await user.type(screen.getByPlaceholderText('Phone Number'), '+62 812-3456-7890');
+    await user.type(screen.getByPlaceholderText('Birth Date'), '1996-04-23');
+    await user.selectOptions(screen.getByRole('combobox'), 'female');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.type(screen.getByPlaceholderText('Re-enter Password'), 'secret123');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    await waitFor(() => {
+      expect(register).toHaveBeenCalledWith(expect.objectContaining({
+        phone: '+6281234567890',
+      }));
+    });
+  });
+
+  it('shows a friendly error when phone number is too short', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Sarah Johnson');
+    await user.type(screen.getByPlaceholderText('Email Address'), 'sarah@example.com');
+    await user.type(screen.getByPlaceholderText('Phone Number'), '08123');
+    await user.type(screen.getByPlaceholderText('Birth Date'), '1996-04-23');
+    await user.selectOptions(screen.getByRole('combobox'), 'female');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.type(screen.getByPlaceholderText('Re-enter Password'), 'secret123');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    expect(await screen.findByText('Nomor telepon minimal 10 digit.')).toBeInTheDocument();
+    expect(register).not.toHaveBeenCalled();
+  });
+
   it('moves doctor registration into the profile completion step', async () => {
     const user = userEvent.setup();
 

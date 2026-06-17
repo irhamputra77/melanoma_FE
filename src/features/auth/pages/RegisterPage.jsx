@@ -19,6 +19,8 @@ const initialForm = {
 };
 const minBirthDate = "1900-01-01";
 const maxBirthDate = new Date().toISOString().slice(0, 10);
+const minPhoneDigits = 10;
+const maxPhoneDigits = 15;
 
 const initialDoctorProfile = {
     specialization: "",
@@ -62,10 +64,11 @@ export default function RegisterPage() {
 
     const handleChange = (event) => {
         const { name, value, type, checked } = event.target;
+        const nextValue = name === "phone" ? sanitizePhoneInput(value) : value;
 
         setForm((current) => ({
             ...current,
-            [name]: type === "checkbox" ? checked : value,
+            [name]: type === "checkbox" ? checked : nextValue,
         }));
     };
 
@@ -376,10 +379,20 @@ export default function RegisterPage() {
                 <input
                     name="phone"
                     placeholder="Phone Number"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    minLength={minPhoneDigits}
+                    maxLength={18}
+                    pattern="^\+?[0-9\s().-]{10,18}$"
+                    title="Nomor telepon harus berisi 10 sampai 15 digit. Boleh diawali +."
                     value={form.phone}
                     onChange={handleChange}
                     className="w-full border-b border-slate-300 py-3 outline-none text-sm"
                 />
+                <p className="-mt-2 text-[11px] font-medium text-slate-500">
+                    Gunakan 10-15 digit, boleh diawali +. Contoh: +6281234567890.
+                </p>
                 <input
                     name="birthDate"
                     placeholder="Birth Date"
@@ -527,6 +540,9 @@ function validateMainForm(form) {
     const emailError = getEmailValidationError(form.email);
     if (emailError) return emailError;
 
+    const phoneError = getPhoneValidationError(form.phone);
+    if (phoneError) return phoneError;
+
     if (form.birthDate.trim() && !normalizeBirthDateInput(form.birthDate)) {
         return "Tanggal lahir tidak valid.";
     }
@@ -545,6 +561,7 @@ function validateMainForm(form) {
 function buildRegisterPayload(form, doctorProfile) {
     const email = normalizeEmail(form.email);
     const birthDate = normalizeBirthDateInput(form.birthDate);
+    const phone = normalizePhoneNumber(form.phone);
 
     if (form.role === "doctor") {
         const payload = new FormData();
@@ -563,7 +580,7 @@ function buildRegisterPayload(form, doctorProfile) {
             payload.append("licenseNumber", doctorProfile.licenseNumber);
         }
 
-        if (form.phone.trim()) payload.append("phoneNumber", form.phone);
+        if (phone) payload.append("phoneNumber", phone);
         if (birthDate) payload.append("birthDate", birthDate);
         if (doctorProfile.medicalLicense) payload.append("medicalLicense", doctorProfile.medicalLicense);
 
@@ -578,8 +595,8 @@ function buildRegisterPayload(form, doctorProfile) {
         password: form.password,
     };
 
-    if (form.phone.trim()) {
-        payload.phone = form.phone;
+    if (phone) {
+        payload.phone = phone;
     }
 
     if (birthDate) {
@@ -587,6 +604,45 @@ function buildRegisterPayload(form, doctorProfile) {
     }
 
     return payload;
+}
+
+function sanitizePhoneInput(value) {
+    return String(value || "").replace(/[^\d+\s().-]/g, "").replace(/(?!^)\+/g, "");
+}
+
+function normalizePhoneNumber(value) {
+    const text = sanitizePhoneInput(value).trim();
+    if (!text) return "";
+
+    const hasPlus = text.startsWith("+");
+    const digits = text.replace(/\D/g, "");
+    return `${hasPlus ? "+" : ""}${digits}`;
+}
+
+function getPhoneValidationError(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+
+    if (!/^\+?[\d\s().-]+$/.test(text)) {
+        return "Nomor telepon hanya boleh berisi angka, spasi, tanda +, titik, strip, atau kurung.";
+    }
+
+    const normalized = normalizePhoneNumber(text);
+    const digitCount = normalized.replace(/\D/g, "").length;
+
+    if (digitCount < minPhoneDigits) {
+        return `Nomor telepon minimal ${minPhoneDigits} digit.`;
+    }
+
+    if (digitCount > maxPhoneDigits) {
+        return `Nomor telepon maksimal ${maxPhoneDigits} digit.`;
+    }
+
+    if (normalized.includes("+") && !normalized.startsWith("+")) {
+        return "Tanda + hanya boleh berada di awal nomor telepon.";
+    }
+
+    return "";
 }
 
 function normalizeBirthDateInput(value) {
