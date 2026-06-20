@@ -120,8 +120,6 @@ const PatientChatPage = () => {
                         if (err.response && err.response.status === 404) {
                             clearInterval(refreshIntervalRef.current);
                             clearInterval(detailIntervalRef.current);
-                            // Hindari auto-redirect jika ini murni 404 dari data lama
-                            // console.warn('Pesan error dari fetch interval');
                         }
                     }
                 }, 3000);
@@ -226,7 +224,7 @@ const PatientChatPage = () => {
     const isConsultationClosed = consultation?.status === 'CLOSED' || consultation?.status === 'case_resolved';
 
     return (
-        <div className="max-w-7xl mx-auto h-[calc(100vh-130px)] flex flex-col">
+        <div className="max-w-7xl mx-auto h-auto xl:h-[calc(100vh-130px)] flex flex-col overflow-y-auto xl:overflow-hidden custom-scrollbar">
 
             <div className="mb-4 shrink-0 flex items-center justify-between">
                 <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Chat with a Physician</h1>
@@ -235,10 +233,9 @@ const PatientChatPage = () => {
                 </button>
             </div>
 
-            <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 gap-5 xl:gap-8 overflow-hidden">
+            <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 gap-5 xl:gap-8 pb-6">
 
-                {/* KOLOM CHAT DOKTER */}
-                <div className="xl:col-span-2 flex flex-col h-full min-h-0 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="xl:col-span-2 flex flex-col h-[550px] xl:h-full min-h-0 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                     
                     <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 shrink-0 bg-gradient-to-r from-blue-50/50 to-white">
                         <div className="flex items-center space-x-4 min-w-0">
@@ -263,7 +260,6 @@ const PatientChatPage = () => {
                             </div>
                         </div>
 
-                        {/* TOMBOL AI KHUSUS MOBILE */}
                         {!isConsultationClosed && (
                             <button
                                 onClick={() => navigate(`/patient/chatbot/${id}`)}
@@ -364,9 +360,7 @@ const PatientChatPage = () => {
                     </div>
                 </div>
 
-                <div className="xl:col-span-1 h-full overflow-y-auto custom-scrollbar pr-2 min-h-0 hidden xl:block pb-10">
-
-                    {/* MENGGUNAKAN ID KONSULTASI UNTUK MASUK KE AI */}
+                <div className="xl:col-span-1 h-auto xl:h-full overflow-y-auto custom-scrollbar pr-2 min-h-0 block pb-10">
                     {!isConsultationClosed && (
                         <div className="bg-gradient-to-br from-[#EBF3FF] to-white rounded-3xl p-5 shadow-sm border border-blue-200 mb-6 animate-fadeIn">
                             <div className="flex items-center mb-3">

@@ -8,18 +8,22 @@ const LandingPage = () => {
   const navigate = useNavigate(); 
   const [isGetStartedLoading, setIsGetStartedLoading] = useState(false);
   const [isCreateAccountLoading, setIsCreateAccountLoading] = useState(false);
-  const [isLearnMoreLoading, setIsLearnMoreLoading] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
 
   const handleGetStarted = () => {
     setIsGetStartedLoading(true);
     setTimeout(() => {
       setIsGetStartedLoading(false);
-      navigate('/auth/login'); 
+      navigate('/detection'); 
     }, 500);
   };
 
   const handleLogin = () => {
-    navigate('/auth/login');
+    setIsLoginLoading(true);
+    setTimeout(() => {
+      setIsLoginLoading(false);
+      navigate('/auth/login');
+    }, 500);
   };
 
   const handleCreateAccount = () => {
@@ -32,7 +36,6 @@ const LandingPage = () => {
 
   return (
     <div className="w-full bg-[#FAFAFA]">
-      {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-8 py-16 md:py-24 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
         <div className="space-y-8">
           <div className="inline-flex items-center space-x-2 bg-blue-50 border border-blue-100 rounded-full px-4 py-1.5">
@@ -57,14 +60,13 @@ const LandingPage = () => {
             </LoadingButton>
             <LoadingButton
               onClick={handleLogin}
-              isLoading={isGetStartedLoading}
+              isLoading={isLoginLoading}
               className="py-3.5 px-8 text-base shadow-lg shadow-blue-600/10"
-              >
+            >
               Login
             </LoadingButton>
           </div>
 
-          {/* Aktual Stat Cards */}
           <div className="grid grid-cols-3 gap-6 pt-6 border-t border-gray-100">
             <div>
               <p className="text-3xl font-black text-gray-900 tracking-tight">93.4%</p>
@@ -87,7 +89,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Trusted By / Institutional Affiliation Section */}
       <section className="bg-white py-12 border-y border-gray-100">
         <div className="max-w-7xl mx-auto px-8 text-center">
           <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-6">
@@ -101,7 +102,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Neural Detection / Core Technology Section */}
       <section className="max-w-7xl mx-auto px-8 py-24 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
         <div className="order-2 md:order-1">
           <img 
@@ -135,7 +135,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
       <section className="bg-white py-24 border-t border-gray-100 px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
@@ -177,7 +176,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Final Call to Action Section */}
       <section className="bg-white py-16 px-8 border-t border-gray-100">
         <div className="max-w-6xl mx-auto bg-[#0A58CA] rounded-3xl p-10 md:p-16 text-center text-white shadow-xl shadow-blue-600/10">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">
@@ -199,7 +197,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Footer Section */}
       <footer className="bg-[#FAFAFA] border-t border-gray-100 py-12 px-8 text-center text-xs font-semibold text-gray-400 tracking-wider uppercase">
         <p>© 2026 MySkin Project Team • Program Studi S-1 Informatika Universitas Telkom</p>
         <p className="mt-2 text-[10px] tracking-normal font-medium text-gray-400 lowercase">
