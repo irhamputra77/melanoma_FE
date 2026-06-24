@@ -23,15 +23,15 @@ export default function CaseHistoryTable({
     onSelectCase,
 }) {
     return (
-        <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full table-fixed text-left">
+        <div className="dashboard-table-scroll mt-5 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table className="min-w-[980px] table-fixed text-left">
                 <thead className="bg-slate-100 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-700">
                     <tr>
-                        <th className="w-[13%] px-8 py-4">Date</th>
-                        <th className="w-[20%] px-4 py-4">Patient</th>
-                        <th className="w-[31%] px-4 py-4">Images</th>
-                        <th className="w-[21%] px-4 py-4">AI Diagnosis</th>
-                        <th className="w-[15%] px-4 py-4">Verification</th>
+                        <th className="w-[14%] px-6 py-4">Date</th>
+                        <th className="w-[22%] px-5 py-4">Patient</th>
+                        <th className="w-[30%] px-5 py-4">Images</th>
+                        <th className="w-[20%] px-5 py-4">AI Diagnosis</th>
+                        <th className="w-[14%] px-5 py-4">Verification</th>
                     </tr>
                 </thead>
 
@@ -61,32 +61,24 @@ export default function CaseHistoryTable({
                             <tr
                                 key={item.caseId || `${item.patient?.id || "case"}-${index}`}
                                 onClick={() => onSelectCase?.(item)}
-                                className={`${selectedCaseId === item.caseId ? "bg-slate-50" : "bg-white"} cursor-pointer`}
+                                className={`${selectedCaseId === item.caseId ? "bg-blue-50/60 shadow-[inset_4px_0_0_#2563eb]" : "bg-white hover:bg-slate-50"} cursor-pointer transition-colors`}
                             >
-                                <td className="px-8 py-4 align-middle">
-                                    <p className="text-sm font-medium leading-tight text-slate-900">
-                                        {dateLines.map((line) => (
-                                            <span key={line} className="block">
-                                                {line}
-                                            </span>
-                                        ))}
+                                <td className="px-6 py-5 align-middle">
+                                    <p className="whitespace-nowrap text-sm font-semibold text-slate-700">
+                                        {dateLines}
                                     </p>
                                 </td>
 
-                                <td className="px-4 py-4 align-middle">
-                                    <p className="text-sm font-extrabold leading-tight text-slate-900">
-                                        {(item.patient?.name || "-").split(" ").map((part) => (
-                                            <span key={part} className="block">
-                                                {part}
-                                            </span>
-                                        ))}
+                                <td className="px-5 py-5 align-middle">
+                                    <p className="truncate text-sm font-extrabold leading-tight text-slate-900">
+                                        {item.patient?.name || "-"}
                                     </p>
-                                    <p className="mt-1 max-w-[180px] truncate text-xs text-slate-500">
+                                    <p className="mt-1 truncate text-xs font-medium text-slate-500">
                                         ID: {item.patient?.id || item.caseId}
                                     </p>
                                 </td>
 
-                                <td className="px-4 py-4 align-middle">
+                                <td className="px-5 py-5 align-middle">
                                     <div className="flex items-start gap-3">
                                         <CaseImageThumbnail
                                             imageUrl={item.clinicalImageUrl}
@@ -106,17 +98,13 @@ export default function CaseHistoryTable({
                                     </div>
                                 </td>
 
-                                <td className="px-4 py-4 align-middle">
-                                    <p className="text-sm font-extrabold leading-tight text-slate-900">
-                                        {aiDiagnosis.split(" ").map((part, index) => (
-                                            <span key={`${part}-${index}`} className="block">
-                                                {part}
-                                            </span>
-                                        ))}
+                                <td className="px-5 py-5 align-middle">
+                                    <p className="line-clamp-2 text-sm font-extrabold leading-relaxed text-slate-900">
+                                        {aiDiagnosis}
                                     </p>
                                 </td>
 
-                                <td className="px-4 py-4 align-middle">
+                                <td className="px-5 py-5 align-middle">
                                     <span
                                         className={`inline-flex min-w-20 justify-center rounded-full px-3 py-1 text-[10px] font-extrabold uppercase ${statusClass[status] || statusClass.pending_review}`}
                                     >
@@ -137,17 +125,17 @@ function normalizeStatus(value) {
 }
 
 function formatDateLines(value) {
-    if (!value) return ["-", "", ""];
+    if (!value) return "-";
 
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-        return [value, "", ""];
+        return value;
     }
 
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    const day = date.toLocaleDateString("en-US", { day: "2-digit" });
-    const year = date.toLocaleDateString("en-US", { year: "numeric" });
-
-    return [month, `${day},`, year];
+    return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+    });
 }

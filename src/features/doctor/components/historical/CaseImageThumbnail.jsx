@@ -8,9 +8,9 @@ export default function CaseImageThumbnail({ imageUrl, label, alt }) {
     const imageIndex = fallback.source === imageUrl ? fallback.index : 0;
 
     return (
-        <div className="space-y-1">
+        <div className="w-14 space-y-1">
             <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{label}</p>
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+            <div className="flex h-12 w-14 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
                 {imageUrl && candidates.length ? (
                     <img
                         src={candidates[imageIndex]}

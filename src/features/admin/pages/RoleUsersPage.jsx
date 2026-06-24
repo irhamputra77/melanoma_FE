@@ -249,10 +249,10 @@ export default function RoleUsersPage({ role }) {
     };
 
     return (
-        <div className="mx-auto max-w-7xl pb-10">
-            <div className="mb-9 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="mx-auto w-full max-w-7xl pb-10">
+            <div className="mb-7 flex flex-col gap-5 sm:mb-9 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         {config.title}
                     </h1>
                     <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600">
@@ -260,11 +260,11 @@ export default function RoleUsersPage({ role }) {
                     </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid gap-3 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
                     <button
                         type="button"
                         onClick={openAddModal}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-extrabold text-white shadow-sm shadow-slate-900/20"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-extrabold text-white shadow-sm shadow-slate-900/20"
                     >
                         <UserPlus size={16} />
                         Add {titleCase(role)}
@@ -273,7 +273,7 @@ export default function RoleUsersPage({ role }) {
                         type="button"
                         onClick={fetchUsers}
                         disabled={loading}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
                     >
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                         Refresh Data
@@ -303,7 +303,7 @@ export default function RoleUsersPage({ role }) {
                         setStatusFilter(event.target.value);
                         setPage(1);
                     }}
-                    className="h-11 rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none"
+                    className="h-11 w-full rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none sm:w-auto"
                 >
                     <option value="all">All statuses</option>
                     <option value="active">Active</option>
@@ -324,8 +324,8 @@ export default function RoleUsersPage({ role }) {
                 </div>
             )}
 
-            <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm">
-                <div className="grid grid-cols-[1.05fr_1.25fr_0.65fr_0.65fr_0.7fr_0.85fr] bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+            <section className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[28px]">
+                <div className="grid min-w-[1080px] grid-cols-[1.05fr_1.25fr_0.65fr_0.65fr_0.7fr_0.85fr] gap-6 bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
                     <span>User</span>
                     <span>Contact</span>
                     <span>Gender</span>
@@ -337,7 +337,7 @@ export default function RoleUsersPage({ role }) {
                     {loading && <EmptyRow text="Loading users..." />}
                     {!loading && users.length === 0 && <EmptyRow text={config.empty} />}
                     {!loading && users.map((user) => (
-                        <article key={user.key} className="grid min-h-[96px] grid-cols-[1.05fr_1.25fr_0.65fr_0.65fr_0.7fr_0.85fr] items-center px-8 text-sm text-slate-700">
+                        <article key={user.key} className="grid min-h-[96px] min-w-[1080px] grid-cols-[1.05fr_1.25fr_0.65fr_0.65fr_0.7fr_0.85fr] items-center gap-6 px-8 text-sm text-slate-700">
                             <div className="flex items-center gap-4">
                                 <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${config.accent === "emerald" ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"}`}>
                                     <UserRound size={20} />
@@ -388,7 +388,7 @@ export default function RoleUsersPage({ role }) {
                 </div>
             </section>
 
-            <div className="mt-8 flex items-center justify-between px-6 text-sm text-slate-600">
+            <div className="mt-6 flex flex-col gap-4 px-1 text-sm text-slate-600 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p>
                     Showing <span className="font-extrabold text-slate-900">{users.length}</span> of {meta.total} records
                 </p>

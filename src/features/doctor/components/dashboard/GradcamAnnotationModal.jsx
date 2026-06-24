@@ -223,7 +223,7 @@ export default function GradcamAnnotationModal({
         <AnimatePresence>
             {open && (
                 <Motion.div
-                    className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-6 py-8 backdrop-blur-sm"
+                    className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-3 py-4 backdrop-blur-sm sm:px-6 sm:py-8"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -233,21 +233,21 @@ export default function GradcamAnnotationModal({
                     onTouchEnd={stopDrawing}
                 >
                     <Motion.div
-                        className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
+                        className="max-h-[95dvh] w-full max-w-6xl overflow-hidden rounded-[22px] bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[30px]"
                         initial={{ opacity: 0, y: 18, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 12, scale: 0.98 }}
                         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                     >
-                        <div className="flex items-start justify-between gap-5 border-b border-slate-100 px-7 py-6">
-                            <div>
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:gap-5 sm:px-7 sm:py-6">
+                            <div className="min-w-0">
                                 <p className="text-[10px] font-extrabold tracking-[0.32em] text-blue-600">
                                     GRAD-CAM ANNOTATION
                                 </p>
-                                <h3 className="mt-2 text-2xl font-extrabold text-slate-950">
+                                <h3 className="mt-2 text-xl font-extrabold text-slate-950 sm:text-2xl">
                                     Edit Clinical Heatmap
                                 </h3>
-                                <p className="mt-1 text-sm font-semibold text-slate-500">
+                                <p className="mt-1 break-words text-xs font-semibold text-slate-500 sm:text-sm">
                                     Case #{caseDetails?.caseId} - {caseDetails?.patient?.name || "Patient"}
                                 </p>
                             </div>
@@ -262,8 +262,8 @@ export default function GradcamAnnotationModal({
                             </button>
                         </div>
 
-                        <div className="grid max-h-[calc(92vh-104px)] grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_280px]">
-                            <div className="flex min-h-[620px] items-center justify-center bg-slate-50 p-6">
+                        <div className="grid max-h-[calc(95dvh-88px)] grid-cols-1 gap-0 overflow-y-auto sm:max-h-[calc(92vh-104px)] lg:grid-cols-[minmax(0,1fr)_280px]">
+                            <div className="flex min-h-[280px] items-center justify-center bg-slate-50 p-3 sm:min-h-[420px] sm:p-6 lg:min-h-[620px]">
                                 {loadError ? (
                                     <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-red-100 bg-red-50 px-6 text-center text-sm font-semibold text-red-600">
                                         {loadError}
@@ -307,7 +307,7 @@ export default function GradcamAnnotationModal({
                                 )}
                             </div>
 
-                            <div className="space-y-5 border-l border-slate-100 bg-white p-6">
+                            <div className="space-y-5 border-t border-slate-100 bg-white p-4 sm:p-6 lg:border-l lg:border-t-0">
                                 <ControlGroup title="Tool">
                                     <div className="grid grid-cols-2 gap-3">
                                         <ToolButton active={tool === "brush"} onClick={() => setTool("brush")}>

@@ -170,7 +170,7 @@ export default function HistoricalCasePage() {
     };
 
     return (
-        <>
+        <div className="mx-auto w-full max-w-[1600px]">
             {error && (
                 <div className="mb-6 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600">
                     {error}
@@ -197,11 +197,11 @@ export default function HistoricalCasePage() {
                         selectedCaseId={selectedCase?.caseId}
                         onSelectCase={handleSelectCase}
                     />
-                    <p className="mt-3 text-xs text-slate-500">
+                    <p className="mt-3 text-xs font-medium text-slate-500">
                         Showing {cases.length} of {meta.total} cases
                     </p>
-                    <div className="mt-3 flex flex-col gap-3 rounded-xl bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="mt-3 flex flex-col gap-4 rounded-xl bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:py-3">
+                        <div className="flex items-center justify-between gap-3 sm:justify-start">
                             <span className="text-xs font-bold text-slate-600">Rows</span>
                             <select
                                 value={filters.limit}
@@ -213,23 +213,23 @@ export default function HistoricalCasePage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:gap-3">
                             <button
                                 type="button"
                                 onClick={() => updateFilters({ page: Math.max(1, currentPage - 1) })}
                                 disabled={loading || currentPage <= 1}
-                                className="h-9 rounded-lg bg-slate-100 px-3 text-xs font-extrabold text-slate-600 disabled:text-slate-300"
+                                className="h-10 rounded-lg bg-slate-100 px-3 text-xs font-extrabold text-slate-600 disabled:text-slate-300"
                             >
                                 Previous
                             </button>
-                            <span className="text-xs font-extrabold text-slate-700">
+                            <span className="whitespace-nowrap text-center text-xs font-extrabold text-slate-700">
                                 Page {currentPage} of {totalPages}
                             </span>
                             <button
                                 type="button"
                                 onClick={() => updateFilters({ page: Math.min(totalPages, currentPage + 1) })}
                                 disabled={loading || currentPage >= totalPages}
-                                className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-extrabold text-white disabled:bg-blue-200"
+                                className="h-10 rounded-lg bg-blue-600 px-3 text-xs font-extrabold text-white disabled:bg-blue-200"
                             >
                                 Next
                             </button>
@@ -244,6 +244,6 @@ export default function HistoricalCasePage() {
                     />
                 </div>
             </div>
-        </>
+        </div>
     );
 }

@@ -15,7 +15,7 @@ export default function DoctorStats({ summary, loading = false }) {
     const data = summary || defaultSummary;
 
     return (
-        <div className="grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 2xl:gap-8">
             <StatCard
                 title="Total Requests"
                 value={loading ? "..." : data.totalRequests?.toLocaleString("en-US")}

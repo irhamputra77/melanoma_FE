@@ -220,10 +220,10 @@ export default function AdminDashboardPage() {
     ];
 
     return (
-        <div className="mx-auto max-w-7xl pb-10">
-            <div className="mb-9 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-                <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+        <div className="mx-auto w-full max-w-7xl pb-8 sm:pb-10">
+            <div className="mb-7 flex flex-col gap-5 sm:mb-9 xl:flex-row xl:items-end xl:justify-between">
+                <div className="min-w-0">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         System Overview
                     </h1>
                     <p className="mt-2 text-base text-slate-600">
@@ -231,11 +231,11 @@ export default function AdminDashboardPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:flex sm:items-center sm:gap-4">
                     <button
                         type="button"
                         onClick={openReportModal}
-                        className="h-11 rounded-xl bg-slate-200 px-5 text-sm font-extrabold text-slate-900"
+                        className="h-11 w-full rounded-xl bg-slate-200 px-5 text-sm font-extrabold text-slate-900 sm:w-auto"
                     >
                         Generate Report
                     </button>
@@ -243,7 +243,7 @@ export default function AdminDashboardPage() {
                         type="button"
                         onClick={refreshDashboard}
                         disabled={refreshing}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm disabled:bg-blue-300"
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm disabled:bg-blue-300 sm:w-auto"
                     >
                         <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
                         Refresh Data
@@ -257,7 +257,7 @@ export default function AdminDashboardPage() {
                 </div>
             )}
 
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:gap-6 xl:grid-cols-4">
                 <MetricCard
                     title="Total Users"
                     value={formatNumber(summary.totalUsers)}
@@ -292,8 +292,8 @@ export default function AdminDashboardPage() {
                 />
             </div>
 
-            <div className="mt-8 grid gap-6 xl:grid-cols-[2fr_0.95fr]">
-                <section className="rounded-2xl bg-white p-8 shadow-sm">
+            <div className="mt-6 grid gap-6 sm:mt-8 xl:grid-cols-[2fr_0.95fr]">
+                <section className="min-w-0 rounded-2xl bg-white p-4 shadow-sm sm:p-6 lg:p-8">
                     <div className="mb-8 flex items-start justify-between">
                         <div>
                             <h2 className="text-lg font-extrabold text-slate-950">User Growth</h2>
@@ -306,7 +306,7 @@ export default function AdminDashboardPage() {
                     <UserGrowthChart data={growth} totalUsers={summary.totalUsers} loading={loading} />
                 </section>
 
-                <section className="rounded-2xl bg-white p-8 shadow-sm">
+                <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6 lg:p-8">
                     <h2 className="mb-7 text-lg font-extrabold text-slate-950">Role Distribution</h2>
                     <div className="space-y-5">
                         {roleDistribution.map((item) => (
@@ -322,25 +322,25 @@ export default function AdminDashboardPage() {
                 </section>
             </div>
 
-            <section className="mt-8 overflow-hidden rounded-2xl bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-100 px-8 py-7">
-                    <div>
+            <section className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm sm:mt-8">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+                    <div className="min-w-0">
                         <h2 className="text-lg font-extrabold text-slate-950">System Logs & Activity</h2>
                         <p className="mt-1 text-sm text-slate-500">Recent critical events and system updates</p>
                     </div>
-                    <Link to="/admin/activity" className="text-sm font-extrabold text-blue-600">
+                    <Link to="/admin/activity" className="shrink-0 text-sm font-extrabold text-blue-600">
                         View All
                     </Link>
                 </div>
 
                 {loading && (
-                    <div className="px-8 py-10 text-center text-sm font-semibold text-slate-500">
+                    <div className="px-4 py-10 text-center text-sm font-semibold text-slate-500 sm:px-8">
                         Loading system activity...
                     </div>
                 )}
 
                 {!loading && logs.length === 0 && (
-                    <div className="px-8 py-10 text-center text-sm font-semibold text-slate-500">
+                    <div className="px-4 py-10 text-center text-sm font-semibold text-slate-500 sm:px-8">
                         No recent system activity.
                     </div>
                 )}
@@ -381,15 +381,15 @@ function ReportModal({
     onClose,
 }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-            <section className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[28px] bg-white p-7 shadow-2xl shadow-slate-950/20">
-                <div className="mb-6 flex items-start justify-between gap-5">
-                    <div className="flex gap-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-8">
+            <section className="max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-white p-4 shadow-2xl shadow-slate-950/20 sm:rounded-[28px] sm:p-7">
+                <div className="mb-6 flex items-start justify-between gap-3 sm:gap-5">
+                    <div className="flex min-w-0 gap-3 sm:gap-4">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                             <FileText size={21} />
                         </span>
                         <div>
-                            <h2 className="text-2xl font-extrabold text-slate-950">Generate Admin Report</h2>
+                            <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">Generate Admin Report</h2>
                             <p className="mt-1 text-sm leading-relaxed text-slate-600">
                                 Generate report metadata, then export the file for download.
                             </p>
@@ -542,7 +542,7 @@ function MetricCard({ title, value, detail, icon, tone, progress, loading, dot =
     }[tone] || "bg-blue-50 text-blue-600";
 
     return (
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
+        <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-6 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-700">{title}</p>
                 <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${toneClass}`}>
@@ -573,7 +573,7 @@ function UserGrowthChart({ data, totalUsers, loading }) {
     }, [data, totalUsers]);
 
     return (
-        <div className="relative h-64">
+        <div className="relative h-56 min-w-0 sm:h-64">
             {loading && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60 text-sm font-semibold text-slate-500">
                     Loading chart...
@@ -648,12 +648,12 @@ function LogRow({ log }) {
     };
 
     return (
-        <article className="flex gap-5 border-b border-slate-100 px-8 py-6 last:border-b-0">
+        <article className="flex gap-3 border-b border-slate-100 px-4 py-5 last:border-b-0 sm:gap-5 sm:px-6 sm:py-6 lg:px-8">
             <span className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${severityStyle.bubble}`}>
                 {severityStyle.icon}
             </span>
             <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-5">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
                     <h3 className="text-sm font-extrabold text-slate-950">{log.title}</h3>
                     <span className="shrink-0 text-xs text-slate-400">{log.timeAgo}</span>
                 </div>

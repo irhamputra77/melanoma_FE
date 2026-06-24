@@ -9,8 +9,8 @@ export default function AiPredictionCard({ aiPrediction }) {
         : "HIGH CONFIDENCE";
 
     return (
-        <div className="bg-[#f4f8fd] border border-blue-100 rounded-[28px] p-7">
-            <div className="flex items-start justify-between gap-4 mb-7">
+        <div className="rounded-[24px] border border-blue-100 bg-[#f4f8fd] p-5 sm:rounded-[28px] sm:p-7">
+            <div className="mb-7 flex flex-col items-start gap-4 min-[420px]:flex-row min-[420px]:justify-between">
                 <div className="flex items-start gap-3">
                     <div className="text-blue-600">
                         <BrainCircuit size={28} strokeWidth={2.5} />

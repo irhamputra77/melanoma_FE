@@ -14,7 +14,7 @@ export default function ClinicalImageMeta({ clinicalImage }) {
     const metadata = { ...defaultMetadata, ...clinicalImage };
 
     return (
-        <div className="grid grid-cols-3 gap-4 mt-6 text-center">
+        <div className="mt-6 grid grid-cols-1 gap-4 text-center min-[420px]:grid-cols-3">
             {Object.entries(labels).map(([key, label]) => (
                 <div key={key}>
                     <p className="text-[10px] font-extrabold text-slate-500">

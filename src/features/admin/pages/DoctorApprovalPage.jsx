@@ -116,10 +116,10 @@ export default function DoctorApprovalPage() {
     };
 
     return (
-        <div className="mx-auto max-w-7xl pb-10">
-            <div className="mb-9 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="mx-auto w-full max-w-7xl pb-10">
+            <div className="mb-7 flex flex-col gap-5 sm:mb-9 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         Doctor Approval
                     </h1>
                     <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600">
@@ -131,7 +131,7 @@ export default function DoctorApprovalPage() {
                     type="button"
                     onClick={fetchPendingDoctors}
                     disabled={loading}
-                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300 sm:w-auto"
                 >
                     <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                     Refresh Data
@@ -154,7 +154,7 @@ export default function DoctorApprovalPage() {
                         setClinicFilter(event.target.value);
                         setPage(1);
                     }}
-                    className="h-11 rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none"
+                    className="h-11 w-full rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none xl:w-auto"
                 >
                     <option value="all">All clinics</option>
                     {clinics.map((clinic) => (
@@ -166,8 +166,8 @@ export default function DoctorApprovalPage() {
             {error && <Alert tone="red" text={error} />}
             {success && <Alert tone="emerald" text={success} />}
 
-            <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm">
-                <div className="grid grid-cols-[1.1fr_1.15fr_1fr_0.9fr_0.9fr] bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+            <section className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[28px]">
+                <div className="grid min-w-[960px] grid-cols-[1.1fr_1.15fr_1fr_0.9fr_0.9fr] gap-6 bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
                     <span>Doctor</span>
                     <span>Contact</span>
                     <span>Clinic</span>
@@ -178,7 +178,7 @@ export default function DoctorApprovalPage() {
                     {loading && <EmptyRow text="Loading pending doctors..." />}
                     {!loading && doctors.length === 0 && <EmptyRow text="No pending doctor approvals." />}
                     {!loading && doctors.map((doctor) => (
-                        <article key={doctor.key} className="grid min-h-[104px] grid-cols-[1.1fr_1.15fr_1fr_0.9fr_0.9fr] items-center px-8 text-sm text-slate-700">
+                        <article key={doctor.key} className="grid min-h-[104px] min-w-[960px] grid-cols-[1.1fr_1.15fr_1fr_0.9fr_0.9fr] items-center gap-6 px-8 text-sm text-slate-700">
                             <div className="flex items-center gap-4">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
                                     <Stethoscope size={20} />
@@ -220,7 +220,7 @@ export default function DoctorApprovalPage() {
                 </div>
             </section>
 
-            <div className="mt-8 flex items-center justify-between px-6 text-sm text-slate-600">
+            <div className="mt-6 flex flex-col gap-4 px-1 text-sm text-slate-600 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p>
                     Showing <span className="font-extrabold text-slate-900">{doctors.length}</span> of {meta.total} records
                 </p>

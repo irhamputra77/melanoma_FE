@@ -210,10 +210,10 @@ export default function ClinicRequestsPage() {
     };
 
     return (
-        <div className="mx-auto max-w-7xl pb-10">
-            <div className="mb-9 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="mx-auto w-full max-w-7xl pb-10">
+            <div className="mb-7 flex flex-col gap-5 sm:mb-9 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         Clinic Management
                     </h1>
                     <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600">
@@ -221,7 +221,7 @@ export default function ClinicRequestsPage() {
                     </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid gap-3 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
                     <button
                         type="button"
                         onClick={() => {
@@ -232,7 +232,7 @@ export default function ClinicRequestsPage() {
                             setClinicFormMode('create');
                             setActiveTab('clinics');
                         }}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-extrabold text-white shadow-sm shadow-slate-900/20"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-extrabold text-white shadow-sm shadow-slate-900/20"
                     >
                         <Plus size={17} />
                         Add Clinic
@@ -241,7 +241,7 @@ export default function ClinicRequestsPage() {
                         type="button"
                         onClick={refreshData}
                         disabled={loading}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
                     >
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                         Refresh Data
@@ -255,7 +255,7 @@ export default function ClinicRequestsPage() {
             </div>
 
             <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-1">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
@@ -288,7 +288,7 @@ export default function ClinicRequestsPage() {
                                 setStatusFilter(event.target.value);
                                 setClinicPage(1);
                             }}
-                            className="h-11 rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none"
+                            className="h-11 w-full rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none sm:w-auto"
                         >
                             <option value="all">All clinics</option>
                             <option value="true">Active only</option>
@@ -343,7 +343,7 @@ export default function ClinicRequestsPage() {
                 />
             )}
 
-            <div className="mt-8 flex items-center justify-between px-6 text-sm text-slate-600">
+            <div className="mt-6 flex flex-col gap-4 px-1 text-sm text-slate-600 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p>
                     Showing <span className="font-extrabold text-slate-900">{activeTab === 'clinics' ? clinics.length : requests.length}</span> of{' '}
                     {activeTab === 'clinics' ? clinicMeta.total : requestMeta.total} records
@@ -400,8 +400,8 @@ export default function ClinicRequestsPage() {
 
 function ClinicTable({ clinics, loading, onEdit, onDelete }) {
     return (
-        <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm">
-            <div className="grid grid-cols-[1.1fr_1fr_1.25fr_0.55fr_0.65fr_0.75fr_0.55fr] bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+        <section className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[28px]">
+            <div className="grid min-w-[1240px] grid-cols-[1.1fr_1fr_1.25fr_0.55fr_0.65fr_0.75fr_0.55fr] gap-6 bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
                 <span>Clinic</span>
                 <span>Contact</span>
                 <span>Address</span>
@@ -414,7 +414,7 @@ function ClinicTable({ clinics, loading, onEdit, onDelete }) {
                 {loading && <EmptyRow text="Loading clinics..." />}
                 {!loading && clinics.length === 0 && <EmptyRow text="No clinics found." />}
                 {!loading && clinics.map((clinic) => (
-                    <article key={clinic.key} className="grid min-h-[96px] grid-cols-[1.1fr_1fr_1.25fr_0.55fr_0.65fr_0.75fr_0.55fr] items-center px-8 text-sm text-slate-700">
+                    <article key={clinic.key} className="grid min-h-[96px] min-w-[1240px] grid-cols-[1.1fr_1fr_1.25fr_0.55fr_0.65fr_0.75fr_0.55fr] items-center gap-6 px-8 text-sm text-slate-700">
                         <div className="flex items-center gap-4">
                             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
                                 <Building2 size={20} />
@@ -456,8 +456,8 @@ function ClinicTable({ clinics, loading, onEdit, onDelete }) {
 
 function RequestTable({ requests, loading, onReview }) {
     return (
-        <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm">
-            <div className="grid grid-cols-[1.05fr_1fr_1.2fr_1.1fr_0.9fr] bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+        <section className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[28px]">
+            <div className="grid min-w-[980px] grid-cols-[1.05fr_1fr_1.2fr_1.1fr_0.9fr] gap-6 bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
                 <span>Requested Clinic</span>
                 <span>Requester</span>
                 <span>Clinic Contact</span>
@@ -468,7 +468,7 @@ function RequestTable({ requests, loading, onReview }) {
                 {loading && <EmptyRow text="Loading requests..." />}
                 {!loading && requests.length === 0 && <EmptyRow text="No pending clinic requests." />}
                 {!loading && requests.map((request) => (
-                    <article key={request.key} className="grid min-h-[108px] grid-cols-[1.05fr_1fr_1.2fr_1.1fr_0.9fr] items-center px-8 text-sm text-slate-700">
+                    <article key={request.key} className="grid min-h-[108px] min-w-[980px] grid-cols-[1.05fr_1fr_1.2fr_1.1fr_0.9fr] items-center gap-6 px-8 text-sm text-slate-700">
                         <div>
                             <p className="text-base font-extrabold text-slate-950">{request.clinicName}</p>
                             <p className="mt-1 text-xs font-semibold text-amber-600">Pending review</p>

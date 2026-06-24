@@ -7,14 +7,16 @@ import {
     LayoutGrid,
     LogOut,
     MessageSquare,
+    Menu,
     Microscope,
     Settings,
     ShieldCheck,
     UsersRound,
+    X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion as Motion } from "motion/react";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { sidebarMenus } from "../constants/sidebarMenus";
 import profileDoctor from "../assets/login_doctor_profile.png";
@@ -59,6 +61,7 @@ export default function DashboardLayout() {
     const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [notificationsError, setNotificationsError] = useState("");
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const menus = sidebarMenus[role] || [];
     const activeMenu = menus.find((menu) => menu.path === location.pathname);
@@ -114,6 +117,22 @@ export default function DashboardLayout() {
     useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
+
+    useEffect(() => {
+        setMobileMenuOpen(false);
+        setNotificationsOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!mobileMenuOpen) return undefined;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [mobileMenuOpen]);
 
     useEffect(() => {
         if (role !== "doctor") return undefined;
@@ -265,13 +284,30 @@ export default function DashboardLayout() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 flex">
-            <aside className={`${isAdmin ? "w-64 bg-slate-50 border-r-0 p-4" : "w-64 bg-white border-r border-slate-200 p-6"} sticky top-0 h-screen shrink-0 overflow-y-auto flex flex-col`}>
-                <div className={`mb-10 flex items-center gap-3 ${isAdmin ? "px-2 pt-7" : ""}`}>
+        <div className="flex min-h-screen bg-slate-100">
+            {mobileMenuOpen && (
+                <button
+                    type="button"
+                    aria-label="Close navigation"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-[2px] lg:hidden"
+                />
+            )}
+
+            <aside className={`${isAdmin ? "bg-slate-50 border-r-0 p-4" : "bg-white border-r border-slate-200 p-5 sm:p-6"} fixed inset-y-0 left-0 z-[80] flex h-dvh w-[min(18rem,86vw)] shrink-0 flex-col overflow-y-auto shadow-2xl transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-64 lg:translate-x-0 lg:shadow-none ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+                <div className={`mb-8 flex items-center gap-3 lg:mb-10 ${isAdmin ? "px-2 pt-3 lg:pt-7" : ""}`}>
                     <span className={`${isAdmin ? "flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white" : "hidden"}`}>
                         <Microscope size={23} />
                     </span>
                     <h1 className="text-2xl font-bold text-blue-600">MySkin</h1>
+                    <button
+                        type="button"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="ml-auto flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 lg:hidden"
+                        aria-label="Close menu"
+                    >
+                        <X size={22} />
+                    </button>
                 </div>
 
                 <nav className="space-y-2 flex-1">
@@ -298,7 +334,7 @@ export default function DashboardLayout() {
 
                 <button
                     onClick={handleLogout}
-                    className="flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-semibold"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-semibold text-white"
                 >
                     <LogOut size={18} />
                     Logout
@@ -306,16 +342,25 @@ export default function DashboardLayout() {
             </aside>
 
             <main className="min-w-0 flex-1">
-                <header className="relative z-40 flex h-[92px] items-center justify-between bg-slate-100 px-8">
-                    <div>
+                <header className="relative z-40 flex min-h-[72px] items-center justify-between gap-3 bg-slate-100 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-8 lg:py-0">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setMobileMenuOpen(true)}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm lg:hidden"
+                            aria-label="Open menu"
+                            aria-expanded={mobileMenuOpen}
+                        >
+                            <Menu size={21} />
+                        </button>
                         {!activeMenu?.hideHeaderTitle && (
-                            <h1 className="text-[28px] font-bold text-slate-900">
+                            <h1 className="truncate text-lg font-bold text-slate-900 sm:text-2xl lg:text-[28px]">
                                 {pageTitle}
                             </h1>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-6">
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-4 lg:gap-6">
                         <div ref={notificationRef} className="relative z-50">
                             <button
                                 type="button"
@@ -347,27 +392,27 @@ export default function DashboardLayout() {
                             </AnimatePresence>
                         </div>
 
-                        <div className="h-9 w-px bg-slate-200" />
+                        <div className="hidden h-9 w-px bg-slate-200 sm:block" />
 
                         <button
                             type="button"
                             onClick={() => navigateWithTransition(role === "admin" ? "/admin/profile" : role === "doctor" ? "/doctor/profile" : `/${role}/settings`)}
-                            className="flex items-center gap-4"
+                            className="flex items-center gap-3 sm:gap-4"
                         >
-                            <div className="text-right">
+                            <div className="hidden text-right md:block">
                                 <p className="font-semibold text-sm text-slate-900">{profile.name}</p>
                                 <p className="text-xs text-slate-500">{profile.title}</p>
                             </div>
                             <img
                                 src={profileDoctor}
                                 alt={profile.name}
-                                className="h-11 w-11 rounded-full border-2 border-blue-500 object-cover"
+                                className="h-10 w-10 rounded-full border-2 border-blue-500 object-cover sm:h-11 sm:w-11"
                             />
                         </button>
                     </div>
                 </header>
 
-                <section className="px-8 pb-8">
+                <section className="px-4 pb-6 sm:px-6 sm:pb-8 lg:px-8">
                     <div className="dashboard-page-transition">
                         <Outlet />
                     </div>
@@ -386,12 +431,12 @@ function NotificationPopover({
     onNotificationClick,
 }) {
     return (
-        <motion.div
+        <Motion.div
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute right-0 top-14 z-[60] w-[320px] overflow-hidden rounded-[22px] bg-white shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200"
+            className="fixed left-4 right-4 top-[76px] z-[60] overflow-hidden rounded-[22px] bg-white shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200 sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-[320px]"
         >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <h2 className="text-lg font-extrabold text-slate-950">Notifications</h2>
@@ -438,14 +483,12 @@ function NotificationPopover({
             >
                 Mark all as read
             </button>
-        </motion.div>
+        </Motion.div>
     );
 }
 
 function NotificationItem({ notification, onClick }) {
     const isRead = isNotificationRead(notification);
-    const Icon = getNotificationIcon(notification);
-
     return (
         <button
             type="button"
@@ -453,7 +496,7 @@ function NotificationItem({ notification, onClick }) {
             className={`flex w-full gap-4 border-b border-slate-100 px-5 py-5 text-left transition hover:bg-slate-50 ${isRead ? "opacity-70" : "bg-blue-50/40"}`}
         >
             <span className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${getNotificationTone(notification)}`}>
-                <Icon size={20} />
+                {getNotificationIcon(notification)}
             </span>
             <span className="min-w-0">
                 <span className="flex items-start gap-2">
@@ -506,11 +549,11 @@ function isAnalysisNotification(notification) {
 function getNotificationIcon(notification) {
     const type = String(notification?.type || "").toLowerCase();
 
-    if (type === "system_message") return MessageSquare;
-    if (type === "verification_alert") return BadgeCheck;
-    if (isAnalysisNotification(notification)) return ActivitySquare;
+    if (type === "system_message") return <MessageSquare size={20} />;
+    if (type === "verification_alert") return <BadgeCheck size={20} />;
+    if (isAnalysisNotification(notification)) return <ActivitySquare size={20} />;
 
-    return BadgeCheck;
+    return <BadgeCheck size={20} />;
 }
 
 function getNotificationTone(notification) {

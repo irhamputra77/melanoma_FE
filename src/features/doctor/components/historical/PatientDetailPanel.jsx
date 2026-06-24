@@ -7,20 +7,20 @@ export default function PatientDetailPanel({ evolutionData, loading = false }) {
     const scans = evolutionData?.evolution || [];
 
     return (
-        <aside className="rounded-2xl bg-white p-5 shadow-sm">
+        <aside className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
             <section>
                 <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <h2 className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-700">
                         Patient Detail
                     </h2>
-                    <div className="flex items-center gap-4 rounded-2xl bg-slate-50 px-4 py-3">
+                    <div className="flex w-full min-w-0 items-center gap-4 rounded-2xl bg-slate-50 px-4 py-3 lg:w-auto">
                         <img
                             src={profileDoctor}
                             alt={patient?.name || "Patient"}
                             className="h-12 w-12 rounded-full object-cover"
                         />
-                        <div>
-                            <p className="text-base font-extrabold leading-tight text-slate-900">{patient?.name || "-"}</p>
+                        <div className="min-w-0">
+                            <p className="truncate text-base font-extrabold leading-tight text-slate-900">{patient?.name || "-"}</p>
                             <p className="text-xs text-slate-500">
                                 {patient ? `${patient.age} y.o. - ${patient.gender}` : "Select a patient"}
                             </p>
@@ -30,7 +30,7 @@ export default function PatientDetailPanel({ evolutionData, loading = false }) {
             </section>
 
             <section className="mt-5">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                     <h2 className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-700">
                         Lesion Evolution
                     </h2>
@@ -53,7 +53,7 @@ export default function PatientDetailPanel({ evolutionData, loading = false }) {
 
                 {!loading && scans.length > 0 && (
                     <div className="relative overflow-hidden">
-                        <div className="overflow-x-auto pb-2">
+                        <div className="dashboard-table-scroll overflow-x-auto pb-3">
                             <div className="relative flex min-w-max gap-5 px-1 pt-8">
                                 <span className="absolute left-1 right-1 top-[14px] h-0.5 bg-blue-600" />
                                 {scans.map((scan, index) => (

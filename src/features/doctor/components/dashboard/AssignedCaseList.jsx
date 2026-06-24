@@ -8,11 +8,11 @@ export default function AssignedCaseList({
 }) {
     return (
         <div>
-            <div className="bg-white rounded-2xl shadow-sm py-3 text-center text-slate-700 font-bold mb-8 border border-slate-100">
+            <div className="mb-4 rounded-2xl border border-slate-100 bg-white py-3 text-center font-bold text-slate-700 shadow-sm xl:mb-8">
                 Assigned
             </div>
 
-            <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                 {loading && (
                     <div className="rounded-2xl bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">
                         Loading assigned cases...

@@ -215,13 +215,13 @@ export default function UserManagementPage() {
     };
 
     return (
-        <div className="max-w-6xl">
-            <div className="mb-12 flex items-start justify-between gap-6">
+        <div className="w-full max-w-7xl">
+            <div className="mb-8 flex flex-col gap-5 sm:mb-12 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         User Management
                     </h1>
-                    <p className="mt-2 max-w-2xl text-lg leading-relaxed text-slate-600">
+                    <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
                         Authorize medical practitioners, manage access levels, and audit system
                         activity across the MySkin diagnostic network.
                     </p>
@@ -230,14 +230,14 @@ export default function UserManagementPage() {
                 <button
                     type="button"
                     onClick={openAddModal}
-                    className="mt-12 inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-7 text-base font-extrabold text-white shadow-lg shadow-blue-600/20"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 text-base font-extrabold text-white shadow-lg shadow-blue-600/20 sm:w-auto"
                 >
                     <UserPlus size={19} />
                     Add User
                 </button>
             </div>
 
-            <div className="mb-6 flex gap-2">
+            <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
                 {["All Roles", "Doctors", "Patients"].map((filter) => (
                     <button
                         key={filter}
@@ -267,8 +267,8 @@ export default function UserManagementPage() {
                 </div>
             )}
 
-            <div className="overflow-hidden rounded-[32px] border-4 border-slate-200/60 bg-white">
-                <div className="grid grid-cols-[1.2fr_0.75fr_1.35fr_0.85fr_0.8fr] bg-slate-50 px-10 py-6 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">
+            <div className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[32px] sm:border-4 sm:border-slate-200/60">
+                <div className="grid min-w-[940px] grid-cols-[1.2fr_0.75fr_1.35fr_0.85fr_0.8fr] gap-6 bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500 sm:px-10 sm:py-6">
                     <span>Name</span>
                     <span>Role</span>
                     <span>Email</span>
@@ -292,7 +292,7 @@ export default function UserManagementPage() {
                     {!loading && filteredUsers.map((user) => (
                         <div
                             key={user.id || user.email}
-                            className="grid min-h-[104px] grid-cols-[1.2fr_0.75fr_1.35fr_0.85fr_0.8fr] items-center px-10 text-slate-700"
+                            className="grid min-h-[104px] min-w-[940px] grid-cols-[1.2fr_0.75fr_1.35fr_0.85fr_0.8fr] items-center gap-6 px-8 text-slate-700 sm:px-10"
                         >
                             <UserIdentity user={user} />
                             <RolePill role={user.role} />
@@ -338,7 +338,7 @@ export default function UserManagementPage() {
                 </div>
             </div>
 
-            <div className="mt-8 flex items-center justify-between px-6 text-sm text-slate-600">
+            <div className="mt-6 flex flex-col gap-4 px-1 text-sm text-slate-600 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p>
                     Showing <span className="font-extrabold text-slate-900">{filteredUsers.length}</span> of {meta.total} users
                 </p>

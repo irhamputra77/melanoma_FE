@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
+import { motion as Motion } from "motion/react";
 import {
     Building2,
     ChevronLeft,
@@ -295,10 +295,10 @@ export default function DoctorDetailsPage() {
     };
 
     return (
-        <div className="mx-auto max-w-7xl pb-10">
-            <div className="mb-9 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="mx-auto w-full max-w-7xl pb-10">
+            <div className="mb-7 flex flex-col gap-5 sm:mb-9 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         Doctor Management
                     </h1>
                     <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600">
@@ -306,11 +306,11 @@ export default function DoctorDetailsPage() {
                     </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid gap-3 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
                     <button
                         type="button"
                         onClick={openAddDoctorModal}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-extrabold text-white shadow-sm shadow-slate-900/20"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-extrabold text-white shadow-sm shadow-slate-900/20"
                     >
                         <UserPlus size={16} />
                         Add Doctor
@@ -319,7 +319,7 @@ export default function DoctorDetailsPage() {
                         type="button"
                         onClick={fetchDoctors}
                         disabled={loading}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm shadow-blue-600/20 disabled:bg-blue-300"
                     >
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                         Refresh Data
@@ -350,7 +350,7 @@ export default function DoctorDetailsPage() {
                         setClinicFilter(event.target.value);
                         setPage(1);
                     }}
-                    className="h-11 rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none"
+                    className="h-11 w-full rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none xl:w-auto"
                 >
                     <option value="all">All clinics</option>
                     {clinics.map((clinic) => (
@@ -363,7 +363,7 @@ export default function DoctorDetailsPage() {
                         setStatusFilter(event.target.value);
                         setPage(1);
                     }}
-                    className="h-11 rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none"
+                    className="h-11 w-full rounded-xl bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm outline-none xl:w-auto"
                 >
                     <option value="all">All statuses</option>
                     <option value="verified">Verified</option>
@@ -384,8 +384,8 @@ export default function DoctorDetailsPage() {
                 </div>
             )}
 
-            <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm">
-                <div className="grid grid-cols-[1.05fr_1.05fr_0.9fr_0.65fr_0.6fr_0.6fr_0.85fr] bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+            <section className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[28px]">
+                <div className="grid min-w-[1240px] grid-cols-[1.05fr_1.05fr_0.9fr_0.65fr_0.6fr_0.6fr_0.85fr] gap-6 bg-slate-50 px-8 py-5 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
                     <span>Doctor</span>
                     <span>Contact</span>
                     <span>Clinic</span>
@@ -398,7 +398,7 @@ export default function DoctorDetailsPage() {
                     {loading && <EmptyRow text="Loading doctors..." />}
                     {!loading && doctors.length === 0 && <EmptyRow text="No doctors found." />}
                     {!loading && doctors.map((doctor) => (
-                        <article key={doctor.key} className="grid min-h-[102px] grid-cols-[1.05fr_1.05fr_0.9fr_0.65fr_0.6fr_0.6fr_0.85fr] items-center px-8 text-sm text-slate-700">
+                        <article key={doctor.key} className="grid min-h-[102px] min-w-[1240px] grid-cols-[1.05fr_1.05fr_0.9fr_0.65fr_0.6fr_0.6fr_0.85fr] items-center gap-6 px-8 text-sm text-slate-700">
                             <div className="flex items-center gap-4">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
                                     <Stethoscope size={20} />
@@ -463,7 +463,7 @@ export default function DoctorDetailsPage() {
                 </div>
             </section>
 
-            <div className="mt-8 flex items-center justify-between px-6 text-sm text-slate-600">
+            <div className="mt-6 flex flex-col gap-4 px-1 text-sm text-slate-600 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p>
                     Showing <span className="font-extrabold text-slate-900">{doctors.length}</span> of {meta.total} records
                 </p>
@@ -615,14 +615,14 @@ function DoctorEditModal({ mode = "edit", doctor, setDoctor, clinics = [], savin
 
 function DoctorPatientsModal({ doctor, patients, loading, error, onClose }) {
     return (
-        <motion.div
+        <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 py-8 backdrop-blur-[6px]"
         >
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0, y: 16, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -641,8 +641,8 @@ function DoctorPatientsModal({ doctor, patients, loading, error, onClose }) {
 
                 {error && <ModalError text={error} />}
 
-                <div className="overflow-hidden rounded-[24px] border border-slate-200">
-                    <div className="grid grid-cols-[1.1fr_1.2fr_0.75fr_0.9fr] bg-slate-50 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
+                <div className="admin-table-scroll overflow-x-auto rounded-[24px] border border-slate-200">
+                    <div className="grid min-w-[680px] grid-cols-[1.1fr_1.2fr_0.75fr_0.9fr] gap-5 bg-slate-50 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
                         <span>Patient</span>
                         <span>Email</span>
                         <span>Cases</span>
@@ -652,7 +652,7 @@ function DoctorPatientsModal({ doctor, patients, loading, error, onClose }) {
                         {loading && <EmptyRow text="Loading patients..." />}
                         {!loading && patients.length === 0 && <EmptyRow text="No patients found for this doctor." />}
                         {!loading && patients.map((patient) => (
-                            <article key={patient.key} className="grid min-h-[82px] grid-cols-[1.1fr_1.2fr_0.75fr_0.9fr] items-center px-5 text-sm text-slate-700">
+                            <article key={patient.key} className="grid min-h-[82px] min-w-[680px] grid-cols-[1.1fr_1.2fr_0.75fr_0.9fr] items-center gap-5 px-5 text-sm text-slate-700">
                                 <div className="flex items-center gap-3">
                                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
                                         <UserRound size={18} />
@@ -669,8 +669,8 @@ function DoctorPatientsModal({ doctor, patients, loading, error, onClose }) {
                         ))}
                     </div>
                 </div>
-            </motion.div>
-        </motion.div>
+            </Motion.div>
+        </Motion.div>
     );
 }
 

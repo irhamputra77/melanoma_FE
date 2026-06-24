@@ -23,7 +23,7 @@ export default function CaseExaminationPanel({
 
     if (loading) {
         return (
-            <div className="bg-white rounded-[32px] p-10 text-center text-sm font-semibold text-slate-500">
+            <div className="rounded-[24px] bg-white p-6 text-center text-sm font-semibold text-slate-500 sm:rounded-[32px] sm:p-10">
                 Loading case details...
             </div>
         );
@@ -31,7 +31,7 @@ export default function CaseExaminationPanel({
 
     if (!caseDetails) {
         return (
-            <div className="bg-white rounded-[32px] p-10 text-center text-sm font-semibold text-slate-500">
+            <div className="rounded-[24px] bg-white p-6 text-center text-sm font-semibold text-slate-500 sm:rounded-[32px] sm:p-10">
                 Select an assigned case to review.
             </div>
         );
@@ -46,26 +46,26 @@ export default function CaseExaminationPanel({
         : "";
 
     return (
-        <div className="bg-white rounded-[32px] p-8 xl:p-10">
-            <div className="flex items-start justify-between gap-6 mb-8">
-                <div>
+        <div className="rounded-[24px] bg-white p-4 sm:rounded-[32px] sm:p-6 lg:p-8 xl:p-10">
+            <div className="mb-6 flex items-start justify-between gap-6 sm:mb-8">
+                <div className="min-w-0">
                     <p className="text-[10px] tracking-[0.38em] text-blue-600 font-extrabold mb-3">
                         CASE EXAMINATION
                     </p>
 
-                    <h2 className="text-[30px] leading-tight font-extrabold text-slate-900">
+                    <h2 className="break-words text-2xl font-extrabold leading-tight text-slate-900 sm:text-[30px]">
                         Case #{caseDetails.caseId}: {caseDetails.patient?.name}
                     </h2>
 
-                    <p className="text-base text-slate-500 mt-2">
+                    <p className="mt-2 text-sm text-slate-500 sm:text-base">
                         Dermatoscopy Analysis Request - Received {receivedDate}
                     </p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8">
-                <div>
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2 2xl:gap-8">
+                <div className="min-w-0">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                         <ClinicalImageCard
                             clinicalImage={caseDetails.clinicalImage}
                             onOpenAnnotation={() => setAnnotationOpen(true)}

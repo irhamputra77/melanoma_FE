@@ -264,7 +264,7 @@ export default function DoctorDashboardPage() {
     };
 
     return (
-        <div>
+        <div className="mx-auto w-full max-w-[1600px]">
             {error && !caseDetails && (
                 <div className="mb-6 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600">
                     {error}
@@ -273,8 +273,8 @@ export default function DoctorDashboardPage() {
 
             <DoctorStats summary={summary} loading={loading} />
 
-            <div className="grid grid-cols-12 gap-8 mt-10">
-                <div className="col-span-4">
+            <div className="mt-6 grid grid-cols-1 gap-6 xl:mt-10 xl:grid-cols-12 xl:gap-8">
+                <div className="min-w-0 xl:col-span-4 2xl:col-span-3">
                     <AssignedCaseList
                         cases={assignedCases}
                         selectedCaseId={selectedCaseId}
@@ -283,7 +283,7 @@ export default function DoctorDashboardPage() {
                     />
                 </div>
 
-                <div className="col-span-8">
+                <div className="min-w-0 xl:col-span-8 2xl:col-span-9">
                     <CaseExaminationPanel
                         caseDetails={caseDetails}
                         loading={caseLoading}

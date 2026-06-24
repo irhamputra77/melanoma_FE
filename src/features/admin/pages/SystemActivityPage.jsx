@@ -130,10 +130,10 @@ export default function SystemActivityPage() {
     };
 
     return (
-        <div className="mx-auto max-w-7xl pb-10">
+        <div className="mx-auto w-full max-w-7xl pb-10">
             <div className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[40px] font-extrabold leading-tight text-slate-950">
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-[40px]">
                         System Logs & Activity
                     </h1>
                     <p className="mt-2 max-w-3xl text-base leading-relaxed text-slate-600">
@@ -144,7 +144,7 @@ export default function SystemActivityPage() {
                     type="button"
                     onClick={() => fetchLogs({ silent: true })}
                     disabled={refreshing}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm disabled:bg-blue-300"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm disabled:bg-blue-300 sm:w-auto"
                 >
                     <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
                     Refresh
@@ -164,7 +164,7 @@ export default function SystemActivityPage() {
             </div>
 
             <section className="mt-8 overflow-hidden rounded-2xl bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-6 pt-6">
+                <div className="border-b border-slate-100 px-4 pt-5 sm:px-6 sm:pt-6">
                     <div className="flex flex-wrap gap-2">
                         <TabButton active={activeTab === "system"} onClick={() => setActiveTab("system")}>
                             System Logs
@@ -332,8 +332,8 @@ function AuditLogTable({ rows }) {
 
 function DataTable({ headers, rows }) {
     return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
+        <div className="admin-table-scroll overflow-x-auto">
+            <table className="min-w-[880px] text-left">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-[0.16em] text-slate-500">
                     <tr>
                         {headers.map((header) => (
